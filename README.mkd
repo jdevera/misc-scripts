@@ -1,0 +1,40 @@
+# Jacobo de Vera's miscellaneous scripts
+
+These are some self-crafted scripts that I like having in all my Linux boxes.
+
+## Contents
+
+ * **abspath**
+   Get the absolute path of a directory or file
+
+ * **apt-get**
+   Wrapper around apt-get that adds the *coffee* command to lock the screen
+
+ * **longlines**
+   Report lines that are longer than a given maximum
+
+ * **pid**
+   Show all processes owned by me whose name matches a given pattern
+
+ * **screener**
+   Show a menu with available screens (GNU Screen) and allows to attach them,
+   join them or create new named screens
+
+ * **showaliases**
+   Show all shell alias definitions in the given files or from stdin
+
+ * **spacehd**
+   Filter the df command output and also show totals of space availability and
+   usage
+
+## Installation
+
+Simply clone this repository and add the directory to your path or copy all
+scripts to a directory that is already in your path.
+
+## License
+
+These scripts, unless stated otherwise in a particular file, are licensed
+under the MIT License.
+
+See LICENSE file for details.

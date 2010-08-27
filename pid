@@ -1,0 +1,86 @@
+#!/bin/bash
+##############################################################################
+#
+# NAME:         pid
+#
+# DESCRIPTION:  Show all the processes owned by me that match certain name
+#               criteria.
+#
+# USAGE:        pid [-n] [PATTERN]
+#               -n      Does not show the ps header
+#               PATTERN A pattern to match the process names. If no pattern
+#                       is specified, all user's processes are shown.
+#
+# DEPENDENCIES:   
+#               * A symlink called hiddenawk in the path to the awk binary.
+#                 This is needed so that the usage of awk in this script
+#                 is not reported in the process list. If it is not present,
+#                 awk will be used.
+#
+##############################################################################
+#
+
+#-----------------------------------------------------------------------------
+usage()
+{
+    sed -e 's/^    //' <<'USAGE'
+    Usage:
+
+    pid [-n] [PATTERN]
+
+      -n      Does not show the ps header
+      PATTERN A pattern to match the process names. If no pattern
+              is specified, all user's processes are shown.
+
+USAGE
+    exit $1
+}
+#-----------------------------------------------------------------------------
+
+
+# Only asking for help
+[[ $1 = '-h' ]] && usage 0
+
+# Headers or not?
+if [[ $1 = -n ]]; then
+    showheader=0
+    shift
+else
+    showheader=1
+fi
+
+# Select AWK command to use. It's better to use hiddenawk because it won't
+# be reported in the ouput.
+if which hiddenawk > /dev/null
+then
+    AWKCOMMAND=hiddenawk
+else
+    AWKCOMMAND=awk
+fi
+
+# The meat!
+ps aux | $AWKCOMMAND \
+            -v user="$USER" \
+            -v proc="$1" \
+            -v showheader="$showheader" \
+            -v mypid="$$" \
+            '
+    BEGIN {
+        userpat="^" user;
+    }
+    {
+        if ( showheader==1 && NR==1 ) {
+            header = $0;
+        }
+        if (($0 ~ userpat) && ($0 ~ proc) && ($11 !~ /^hiddenawk/) &&
+            ($2 != mypid))
+        {
+            if (showheader == 1) {
+                showheader = 0;
+                print header;
+            }
+            print $0;
+        }
+    }'
+
+# vim: fdm=marker :

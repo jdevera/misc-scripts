@@ -1,0 +1,91 @@
+#!/usr/bin/python
+##############################################################################
+#
+# NAME:         showaliases
+#
+# DESCRIPTION:  Print a two column list of all shell aliases that exist in 
+#               all the files that are passed as parameters or from stdin
+#               if no file is specified.
+#
+#               The alias name is coloured so that it stands out.
+#
+#               Note that for an alias to be list, the word alias must be the
+#               first in the line. If an alias is defined inside a conditional
+#               block, it will listed regardless of the value of the
+#               condition.
+#
+# USAGE:        showaliases [FILE [FILE ...] |  - ]
+#               
+#               Since it can also read its input from stdin, it can be run as
+#               filter for the output of the alias command (at least in bash):
+#               $ alias | showaliases
+#
+#
+# DEPENDENCIES: None  
+#
+##############################################################################
+#
+
+import sys
+import fileinput
+
+ANSI_BLUE  = "\x1b[0;36m"
+ANSI_RESET = "\x1b[0m"
+
+def ansify(string, colour):
+    """
+    Paints a string usgint eh given ANSI colour code.
+    """
+    return "%s%s%s" % (colour, string, ANSI_RESET)
+
+def myprint(string):
+    """
+    Print a string AS IS, with no ending linebreak
+    """
+    sys.stdout.write(string)
+
+def aliase(alias):
+    """
+    Takes an alias definition and returns a tuple with the alias name as first
+    element and the alias contents as the second element.
+    """
+    return tuple(alias.strip().split(" ", 1)[1].split("=", 1))
+
+def printlist(alist):
+    """
+    Prints all elements in a list, one per line
+    """
+    for i in alist:
+        print i
+
+def printalias(alist):
+    """
+    Print a list of alias tuples in two left aligned columns.
+    The first column contains the alias name in blue colour and the second
+    column has the definition.
+    """
+
+    # Find the largest alias name length to align all definitions
+    colsize = reduce(max, map(lambda x: len(x[0]), alist))
+
+    for alias in alist:
+        fmt = "%%%ds = %%s" % (colsize+12)
+        print fmt % (ansify(alias[0], ANSI_BLUE), alias[1])
+
+def main():
+    """
+    Print all shell aliases in all input files
+    """
+    try:
+        alist = [aliase(alias) for alias in fileinput.input()
+                               if alias.strip().startswith("alias ")]
+    except KeyboardInterrupt:
+        # If ran with no parameters, the script will expect its input on stdin
+        # and a user might get tired of waiting for something to happen.
+        # Ctrl-C here should be a natural way to exit.
+        return 1
+    printalias(alist)
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())

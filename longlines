@@ -1,0 +1,58 @@
+#!/bin/bash
+##############################################################################
+#
+# NAME:         longlines
+#
+# DESCRIPTION:  Show the lines that exceed a given number of characters.
+#               The output shows the file, line number and contents.
+#               If the output is redirected to a file, sch file can then be
+#               used with Vim's quickFix mode.
+#
+# USAGE:        longlines [-l MAX_LENGTH] FILE [ FILE2 [FILE 3...]]
+#                 -h                Show usage
+#                 -l MAX_LENGTH     Maximum allowed line length
+#
+# DEPENDENCIES: None  
+#
+##############################################################################
+#
+
+DEFAULT_LINE_LENGTH=80
+
+#-----------------------------------------------------------------------------
+usage()
+{
+    sed -e 's/^    //' <<'USAGE'
+    Usage:
+
+    longlines [-l MAX_LENGTH] FILE [ FILE2 [FILE 3...]]
+
+      -h                Show usage
+      -l MAX_LENGTH     Maximum allowed line length
+
+USAGE
+    exit $1
+}
+#-----------------------------------------------------------------------------
+
+# Only asking for help
+[[ $1 = '-h' ]] && usage 0
+
+# How long the lines can be
+if [[ $1 = '-l' ]]
+then
+    linelen=$2
+    shift
+    shift
+else
+    linelen=$DEFAULT_LINE_LENGTH
+fi
+
+# Still need at least a file to check
+[[ $# = 0 ]] && usage 1
+
+awk -v linelen=$linelen '
+{
+    if (length() > linelen)
+        printf("%s:%d:%s\n", FILENAME, NR, $0);
+}' "$@"

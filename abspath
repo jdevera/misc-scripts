@@ -1,0 +1,21 @@
+#!/usr/bin/python
+##############################################################################
+#
+# NAME:         abspath
+#
+# DESCRIPTION:  Prints the absolute path for a given file or directory
+#
+# USAGE:        abspath FILE
+#
+# DEPENDENCIES: None
+#
+##############################################################################
+#
+
+import os.path
+import sys
+
+if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
+    print os.path.abspath(sys.argv[1])
+else:
+    sys.exit(1)
