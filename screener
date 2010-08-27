@@ -1,4 +1,20 @@
 #!/usr/bin/env python
+##############################################################################
+#
+# NAME:         screener
+#
+# DESCRIPTION:  Show a menu with all the existing screens (GNU screen) and
+#               offer the user the choice to join any of them.
+#
+#               Present also an option to create a new named screen session.
+#
+# USAGE:        screener
+#
+# DEPENDENCIES:
+#               * GNU screen
+#
+##############################################################################
+#
 
 import commands
 import sys
