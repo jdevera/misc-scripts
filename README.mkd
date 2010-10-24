@@ -13,6 +13,9 @@ These are some self-crafted scripts that I like having in all my Linux boxes.
  * **longlines**
    Report lines that are longer than a given maximum
 
+ * **lsrepos**
+   Show which directories are version controlled repositories
+
  * **pid**
    Show all processes owned by me whose name matches a given pattern
 
