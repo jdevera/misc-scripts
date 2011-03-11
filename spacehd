@@ -33,7 +33,11 @@ BEGIN {
 	print header
 	print line
 }
-	
+
+/^tmpfs/ {
+    next;
+}
+
 /\/media\/|\/home|\/$$/ {
     # Aggregate measures
 	size += $2
