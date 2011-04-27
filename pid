@@ -11,11 +11,7 @@
 #               PATTERN A pattern to match the process names. If no pattern
 #                       is specified, all user's processes are shown.
 #
-# DEPENDENCIES:   
-#               * A symlink called hiddenawk in the path to the awk binary.
-#                 This is needed so that the usage of awk in this script
-#                 is not reported in the process list. If it is not present,
-#                 awk will be used.
+# DEPENDENCIES: None  
 #
 ##############################################################################
 #
@@ -49,33 +45,28 @@ else
     showheader=1
 fi
 
-# Select AWK command to use. It's better to use hiddenawk because it won't
-# be reported in the ouput.
-if which hiddenawk > /dev/null
-then
-    AWKCOMMAND=hiddenawk
-else
-    AWKCOMMAND=awk
-fi
 
 # The meat!
-ps aux | $AWKCOMMAND \
+ps aux | awk \
             -v user="$USER" \
             -v proc="$1" \
             -v showheader="$showheader" \
-            -v mypid="$$" \
+            -v shell_pid="$$" \
             '
     BEGIN {
-        userpat="^" user;
+        username_pattern="^" user;
     }
     {
-        if ( showheader==1 && NR==1 ) {
+        if (showheader == 1 && NR == 1)
+        {
             header = $0;
         }
-        if (($0 ~ userpat) && ($0 ~ proc) && ($11 !~ /^hiddenawk/) &&
-            ($2 != mypid))
+        awk_pid =  PROCINFO["pid"];
+        if (($0 ~ username_pattern) && ($0 ~ proc) && 
+            ($2 != awk_pid) && ($2 != shell_pid) )
         {
-            if (showheader == 1) {
+            if (showheader == 1)
+            {
                 showheader = 0;
                 print header;
             }
