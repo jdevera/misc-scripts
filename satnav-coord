@@ -1,0 +1,20 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Convert coordinates from the format provided by Google Maps' Labs Drop LatLng
+Marker (decimal degrees) into the format expected by a Garmin Nuvi satnav
+(degrees and decimal minutes)
+"""
+
+import sys
+
+lon, lat = map(float, "".join(sys.argv[1:]).split(','))
+
+def decdegtodegmin(decdeg):
+    decdeg = abs(decdeg)
+    degrees = int(decdeg)
+    minutes = (decdeg - degrees) * 60
+    return "%03d° %2.3f'"%(degrees, minutes)
+
+print "Longitude: %s %s" % ( 'N' if lon > 0 else 'S', decdegtodegmin(lon))
+print "Latitude:  %s %s" % ( 'E' if lat > 0 else 'W', decdegtodegmin(lat))

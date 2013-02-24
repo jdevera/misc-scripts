@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+set -e
+
+function die()
+{
+    echo "$*" 1>&2
+    exit 1
+}
+
+function check_args()
+{
+    [[ -n $1 ]] || die "No source template provided"
+    [[ -n $2 ]] || die "No destination file name provided"
+    [[ -n $SOURCE_TEMPLATES ]] || die "Source templates dir not set. Use SOURCE_TEMPLATES"
+    [[ -d $SOURCE_TEMPLATES ]] || die "Source templates dir not found"
+}
+
+function main()
+{
+
+    if [[ $1 == '_' ]]; then
+        ( builtin cd $SOURCE_TEMPLATES; ls -1 )
+        exit 0
+    fi
+
+    check_args "$@"
+
+    local source_template="$SOURCE_TEMPLATES/$1" 
+
+    [[ -f $source_template ]] || die "Specified source template not found"
+
+    cp -r "$source_template" "$2"
+}
+
+main "$@"

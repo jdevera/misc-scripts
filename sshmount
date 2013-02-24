@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# SSH mount the root dir of a remote box
+# Thanks to Peter Krcah for this one.
+
+die() { echo $* 1>&2; exit 1; }
+
+host="$1"
+basedir="${2:-/mnt/remote}"
+
+[[ -z $host ]] && die "Usage: $0 host [basedir]"
+
+dir="$basedir/$host"
+mkdir -p $dir
+
+# Try to unmount first
+fusermount -u $dir
+
+# And now mount it
+sshfs -o follow_symlinks $host:/ $dir
+
+echo "$host mounted on $dir"
