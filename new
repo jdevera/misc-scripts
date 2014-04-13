@@ -8,18 +8,30 @@ function die()
     exit 1
 }
 
-function check_args()
+function usagedie()
 {
-    [[ -n $1 ]] || die "No source template provided"
-    [[ -n $2 ]] || die "No destination file name provided"
+    echo "USAGE: new <template> <file>"
+    echo "       new -l"
+    die $@
+}
+
+function check_env()
+{
     [[ -n $SOURCE_TEMPLATES ]] || die "Source templates dir not set. Use SOURCE_TEMPLATES"
     [[ -d $SOURCE_TEMPLATES ]] || die "Source templates dir not found"
 }
 
+function check_args()
+{
+    [[ -n $1 ]] || usagedie "No source template provided"
+    [[ -n $2 ]] || usagedie "No destination file name provided"
+}
+
 function main()
 {
+    check_env
 
-    if [[ $1 == '_' ]]; then
+    if [[ $1 == '--complete' ]] || [[ $1 == '-l' ]]; then
         ( builtin cd $SOURCE_TEMPLATES; ls -1 )
         exit 0
     fi
@@ -30,7 +42,7 @@ function main()
 
     [[ -f $source_template ]] || die "Specified source template not found"
 
-    cp -r "$source_template" "$2"
+    command cp -r "$source_template" "$2"
 }
 
 main "$@"
