@@ -11,7 +11,7 @@
 #               PATTERN A pattern to match the process names. If no pattern
 #                       is specified, all user's processes are shown.
 #
-# DEPENDENCIES: None  
+# DEPENDENCIES: None 
 #
 ##############################################################################
 #
@@ -49,12 +49,14 @@ fi
 # The meat!
 ps aux | awk \
             -v user="$USER" \
+            -v userid="$(id -u $USER)" \
             -v proc="$1" \
             -v showheader="$showheader" \
             -v shell_pid="$$" \
             '
     BEGIN {
         username_pattern="^" user;
+        userid_pattern="^" userid;
     }
     {
         if (showheader == 1 && NR == 1)
@@ -62,7 +64,7 @@ ps aux | awk \
             header = $0;
         }
         awk_pid =  PROCINFO["pid"];
-        if (($0 ~ username_pattern) && ($0 ~ proc) && 
+        if ( ( ($0 ~ username_pattern) || ($0 ~ userid_pattern) ) && ($0 ~ proc) && 
             ($2 != awk_pid) && ($2 != shell_pid) )
         {
             if (showheader == 1)
