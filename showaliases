@@ -76,7 +76,7 @@ def get_aliases(files, args):
     """
 
     if args.without_alias:
-        regex = r'^\s*(\S+)\s*=\s*(.*)$'
+        regex = r'^\s*(\S+?)\s*=\s*(.*)$'
     else:
         regex = r'^\s*alias\s+(\S+)\s*=\s*(.*)$'
 
