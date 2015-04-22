@@ -29,10 +29,19 @@ detect_repo()
                 echo "SVN $file"
             elif [[ -d $file/.hg ]]; then  # Mercurial repository
                 echo "HG  $file"
+            elif [[ -d $file ]] && [[ $showall -eq 1 ]]; then
+                echo "--- $file"
             fi
         fi
     done
 }
+
+
+if [[ $1 == '-a' ]]
+then
+    shift
+    showall=1
+fi
 
 
 if [[ $# < 1 ]]; then
