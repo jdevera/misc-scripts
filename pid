@@ -47,25 +47,19 @@ fi
 
 
 # The meat!
-ps aux | awk \
-            -v user="$USER" \
-            -v userid="$(id -u $USER)" \
+ps aux -u $USER -U $USER | awk \
             -v proc="$1" \
             -v showheader="$showheader" \
             -v shell_pid="$$" \
             '
-    BEGIN {
-        username_pattern="^" user;
-        userid_pattern="^" userid;
-    }
     {
+        /* If header is requested, save it just in case */
         if (showheader == 1 && NR == 1)
         {
             header = $0;
         }
         awk_pid =  PROCINFO["pid"];
-        if ( ( ($0 ~ username_pattern) || ($0 ~ userid_pattern) ) && ($0 ~ proc) && 
-            ($2 != awk_pid) && ($2 != shell_pid) )
+        if ( ($0 ~ proc) && ($2 != awk_pid) && ($2 != shell_pid) )
         {
             if (showheader == 1)
             {
