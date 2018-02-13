@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 ##############################################################################
 #
@@ -37,6 +37,7 @@ import fileinput
 import os
 import re
 import sys
+from functools import reduce
 
 # Third party imports
 
@@ -62,11 +63,11 @@ def printalias(alist):
     """
 
     # Find the largest alias name length to align all definitions
-    colsize = reduce(max, map(lambda x: len(x[0]), alist))
+    colsize = reduce(max, [len(x[0]) for x in alist])
 
     for alias in alist:
         fmt = "%%%ds = %%s" % (colsize+12)
-        print fmt % (ansify(alias[0], ANSI_BLUE), alias[1])
+        print(fmt % (ansify(alias[0], ANSI_BLUE), alias[1]))
 
 def get_aliases(files, args):
     """
@@ -107,9 +108,9 @@ def main(argv=[__name__]):
     args = parse_args(argv)
     try:
 
-        files = filter(lambda x: os.path.isfile(x) or x=='-', args.file)
+        files = [x for x in args.file if os.path.isfile(x) or x=='-']
         if len(files) == 0 and args != sys.argv[1:]:
-            print>>sys.stderr, "Some files could not be found"
+            print("Some files could not be found", file=sys.stderr)
             return 1
 
         alist = get_aliases(files, args)

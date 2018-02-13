@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 ##############################################################################
 #
 # NAME:         screener
@@ -16,7 +16,7 @@
 ##############################################################################
 #
 
-import commands
+import subprocess
 import sys
 import os
 
@@ -45,8 +45,8 @@ def get_screen_list():
 
     # Filter the output, only Attached or Detached screens
     filter_screens = lambda x: ("(Attached)" in x or "(Detached)" in x)
-    screens = filter(filter_screens,
-                     commands.getoutput(screen_list_cmd).splitlines())
+    screens = list(filter(filter_screens,
+                     subprocess.getoutput(screen_list_cmd).splitlines()))
 
     # Get only screen name and status
     screen_list = [select_elems(line.strip().split(), (0, -1)) 
@@ -60,11 +60,11 @@ def show_screen_menu(screen_list):
     Print all screen names in the list with a different number each.
     """
     if len(screen_list) == 0:
-        print "No screens found"
-        print
+        print("No screens found")
+        print()
     screen_list.append(["New screen", ""])
     for (num, screen) in enumerate(screen_list):
-        print "%2d) %20s %12s" % (num + 1, screen[0], screen[1])
+        print("%2d) %20s %12s" % (num + 1, screen[0], screen[1]))
 
         
 def get_user_numeric_option(prompt, minopt, maxopt):
@@ -74,7 +74,7 @@ def get_user_numeric_option(prompt, minopt, maxopt):
     Return -1 if the input is not a number or if it out of range.
     """
     try:
-        numopt = int(raw_input(prompt))
+        numopt = int(input(prompt))
         if numopt < minopt or numopt > maxopt:
             numopt = -1
     except:
@@ -89,7 +89,7 @@ def validate_option(opt, invalid, errmsg):
     Check that the option is in the list of valid options.
     """
     if opt in invalid:
-        print errmsg
+        print(errmsg)
         return False
     return True
 
@@ -104,21 +104,21 @@ def main():
         try:
             opt = get_user_numeric_option("Screen # --> ", 1, screen_count + 1)
         except KeyboardInterrupt:
-            print
+            print()
             return 1
         if not validate_option(opt, [-1], "No valid screen selected"):
             return 1
     else:
-        print "No screens found, will create one."
-        print
+        print("No screens found, will create one.")
+        print()
         opt = 1 # This forces the creation of a new screen
     
     # New screen
     if opt == screen_count + 1:
         try:
-            screen_name = raw_input("New screen name --> ")
+            screen_name = input("New screen name --> ")
         except KeyboardInterrupt:
-            print
+            print()
             return 1
         modif = FLAG_CREATE
         validate_option(screen_name, [""], "Invalid screen name")
@@ -126,14 +126,14 @@ def main():
     else:
         screen = screen_list[opt - 1]
         screen_name = screen[0]
-    
+
         if "Attached" in screen[1]:
             modif = FLAG_JOIN
         elif "Detached" in screen[1]:
             modif = FLAG_ATTACH
         else:
-            print "Don't know what to do with a screen in %s state" % (
-                  screen[1])
+            print("Don't know what to do with a screen in %s state" % (
+                  screen[1]))
             return 1
 
     os.execlp("screen", "screen", modif, screen_name)

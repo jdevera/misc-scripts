@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 ##############################################################################
 #
 # NAME:         abspath
@@ -16,6 +16,6 @@ import os.path
 import sys
 
 if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
-    print os.path.abspath(sys.argv[1])
+    print(os.path.abspath(sys.argv[1]))
 else:
     sys.exit(1)
