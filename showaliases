@@ -1,32 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-##############################################################################
-#
-# NAME:         showaliases
-#
-# DESCRIPTION:  Print a two column list of all shell aliases that exist in 
-#               all the files that are passed as parameters or from stdin
-#               if no file is specified.
-#
-#               The alias name is coloured so that it stands out.
-#
-#               Note that for an alias to be list, the word alias must be the
-#               first in the line. If an alias is defined inside a conditional
-#               block, it will listed regardless of the value of the
-#               condition.
-#
-# USAGE:        showaliases [FILE [FILE ...] |  - ]
-#               
-#               Since it can also read its input from stdin, it can be run as
-#               filter for the output of the alias command (at least in bash):
-#               $ alias | showaliases
-#
-#
-# DEPENDENCIES: None  
-#
-##############################################################################
-#
-
+# BRIEF: Display shell aliases in a formatted two-column list
+# DESC: Extracts and formats shell aliases from files or stdin, displaying
+# DESC: the alias name (in color) and its definition in aligned columns.
+# DESC: Useful for viewing aliases from shell config files or from the
+# DESC: output of the alias command.
+# USAGE: showaliases [FILE [FILE ...] | -]
+# USAGE: showaliases [-a|--without-alias]  # Don't require 'alias' keyword
+# USAGE:   Can read from stdin: alias | showaliases
 
 __description__ = ''
 

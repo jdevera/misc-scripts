@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# BRIEF: Show current git committer and author identity
+# USAGE: git-identity [--porcelain|--json]
+# DEPS: git jq sed
 
 function get_identity()
 {

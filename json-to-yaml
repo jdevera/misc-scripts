@@ -6,6 +6,9 @@
 #     "pyyaml",
 # ]
 # ///
+# BRIEF: Convert JSON files to YAML format
+# USAGE: json-to-yaml [input_file] [output_file]
+# USAGE:   Defaults to stdin/stdout if files not specified
 
 import click
 import yaml

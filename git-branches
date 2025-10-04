@@ -5,6 +5,11 @@
 #     "colored",
 # ]
 # ///
+# BRIEF: Display git branches organized by category with color coding
+# DESC: Classifies branches into categories (current, tracking, jira-linked,
+# DESC: resolved, parked, other) and displays them with color highlighting
+# DESC: for better visual organization.
+# USAGE: git-branches [-a|--all] [-c|--color auto|always|never] [-f|--filter]
 
 __description__ = ''
 

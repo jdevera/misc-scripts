@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-
-# uv-script-docker-debian - Test standalone UV scripts in Linux Docker container
-# Usage: uv-script-docker-debian <script_path> [script_arguments...]
-#
-# Docker Volumes Used:
-# - uv-cache: Persists /root/.cache/uv (raw packages, source tarballs)
-# - uv-local-share: Persists /root/.local/share/uv (Python versions, environment metadata, built wheels)
-# These volumes prevent re-downloading Python and packages on each run.
+# BRIEF: Test standalone UV scripts in a Debian Docker container
+# DESC: Runs UV Python scripts inside a Docker container with persistent
+# DESC: caching to avoid re-downloading Python versions and packages. Uses
+# DESC: named Docker volumes for uv cache and local share directories.
+# USAGE: uv-script-docker-debian <script_path> [script_arguments...]
+# DEPS: docker
 
 set -euo pipefail
 

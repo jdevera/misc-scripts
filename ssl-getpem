@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
+# BRIEF: Get PEM certificate chain for an SSL connection
+# DESC: Connects to the specified host and port, retrieves the SSL
+# DESC: certificate chain, and outputs it in PEM format. Useful for
+# DESC: inspecting certificates or adding them to trust stores.
+# USAGE: ssl-getpem <host> [<port>] [<output-file>]
+# USAGE:   host         - Hostname to connect to
+# USAGE:   port         - Port number (default: 443)
+# USAGE:   output-file  - Output file (default: stdout)
+# DEPS: openssl
 
-# Get PEM formatted certificate chain for a particular SSL connection
 set -e
 
 host="$1"

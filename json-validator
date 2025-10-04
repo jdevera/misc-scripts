@@ -9,7 +9,9 @@
 #     "rich",
 # ]
 # ///
-
+# BRIEF: Validate JSON/YAML files against a schema
+# USAGE: json-validator --schema <schema> [--dump-schema] <file>...
+# USAGE:   Schema can be a file path or URL
 
 import json
 import re

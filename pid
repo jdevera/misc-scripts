@@ -7,6 +7,11 @@
 #     "rich",
 # ]
 # ///
+# BRIEF: Show processes for the current user with optional filtering
+# DESC: Lists all processes owned by the current user (by real or effective
+# DESC: UID) with PID, CPU time, and command name. Supports pattern matching
+# DESC: with case-insensitive search and highlighting.
+# USAGE: pid [-n|--no-header] [-i|--case-insensitive] [--hl-color COLOR] [PATTERN]
 
 import os
 import re

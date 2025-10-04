@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# BRIEF: Detect and display the git remote hosting service
+# DESC: Identifies the hosting platform (GitHub, GitLab, Bitbucket, Gitea,
+# DESC: Forgejo, or other) for a git repository and outputs a symbol or
+# DESC: detailed information about it.
+# USAGE: git-remote-hoster [--help] [--force] [--json] [--verbose] [directory]
+# DEPS: git curl jq
 
 set -euo pipefail
 

@@ -1,21 +1,12 @@
 #!/bin/bash
-##############################################################################
-#
-# NAME:         longlines
-#
-# DESCRIPTION:  Show the lines that exceed a given number of characters.
-#               The output shows the file, line number and contents.
-#               If the output is redirected to a file, sch file can then be
-#               used with Vim's quickFix mode.
-#
-# USAGE:        longlines [-l MAX_LENGTH] FILE [ FILE2 [FILE 3...]]
-#                 -h                Show usage
-#                 -l MAX_LENGTH     Maximum allowed line length
-#
-# DEPENDENCIES: None  
-#
-##############################################################################
-#
+# BRIEF: Show lines exceeding a given character length
+# DESC: Scans files for lines longer than the specified length and outputs
+# DESC: the filename, line number, and contents in a format compatible with
+# DESC: Vim's quickfix mode.
+# USAGE: longlines [-h] [-l MAX_LENGTH] FILE [FILE2 ...]
+# USAGE:   -h              Show usage
+# USAGE:   -l MAX_LENGTH   Maximum allowed line length (default: 80)
+# DEPS: awk sed
 
 DEFAULT_LINE_LENGTH=80
 

@@ -1,16 +1,6 @@
 #!/usr/bin/env python3
-##############################################################################
-#
-# NAME:         abspath
-#
-# DESCRIPTION:  Prints the absolute path for a given file or directory
-#
-# USAGE:        abspath FILE
-#
-# DEPENDENCIES: None
-#
-##############################################################################
-#
+# BRIEF: Print the absolute path for a given file or directory
+# USAGE: abspath FILE
 
 import os.path
 import sys

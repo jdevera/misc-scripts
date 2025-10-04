@@ -1,0 +1,387 @@
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "click",
+#     "rich",
+#     "jinja2",
+# ]
+# ///
+# BRIEF: Extract and display documentation from scripts
+# DESC: Parses BRIEF/DESC/USAGE/DEPS tags from script files and outputs
+# DESC: the documentation in various formats (JSON, text, markdown).
+# USAGE: script-docs dump <script-file>
+
+import re
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import click
+from jinja2 import Template
+from rich.console import Console
+from rich.json import JSON
+from rich.markdown import Markdown
+
+
+# Compiled regex patterns for documentation tags
+TAG_LINE_PATTERN = re.compile(r'^#\s*(BRIEF|DESC|USAGE|DEPS):\s*(.*)$')
+TAG_LABEL_PATTERN = re.compile(r'^#\s*(BRIEF|DESC|USAGE|DEPS):')
+
+
+# Default markdown template
+DEFAULT_MARKDOWN_TEMPLATE = """{% for script in scripts %}
+# {{ script.name }}
+
+{{ script.brief }}
+
+{% if script.desc %}
+## Description
+
+{{ script.desc }}
+{% endif %}
+
+{% if script.usage %}
+## Usage
+
+```
+{{ script.usage }}
+```
+{% endif %}
+
+{% if script.deps %}
+## Dependencies
+
+{{ script.deps }}
+{% endif %}
+{% if not loop.last %}
+
+---
+
+{% endif %}
+{% endfor %}""".strip()
+
+
+# README template (brief summary for inclusion in README)
+README_TEMPLATE = """{% for script in scripts %}
+- **{{ script.name }}** - {{ script.brief }}
+{% endfor %}""".strip()
+
+
+@dataclass
+class ScriptDoc:
+    """Documentation extracted from a script."""
+    name: str = ''
+    brief_lines: list[str] = field(default_factory=list)
+    desc_lines: list[str] = field(default_factory=list)
+    usage_lines: list[str] = field(default_factory=list)
+    deps_lines: list[str] = field(default_factory=list)
+
+    @property
+    def brief(self) -> str:
+        """Join brief_lines with newlines."""
+        return '\n'.join(self.brief_lines)
+
+    @property
+    def desc(self) -> str:
+        """Join desc_lines with newlines."""
+        return '\n'.join(self.desc_lines)
+
+    @property
+    def usage(self) -> str:
+        """Join usage_lines with newlines."""
+        return '\n'.join(self.usage_lines)
+
+    @property
+    def deps(self) -> str:
+        """Join deps_lines with newlines."""
+        return '\n'.join(self.deps_lines)
+
+    def verify(self) -> None:
+        """
+        Verify that the documentation meets basic requirements.
+
+        Prints validation errors to stderr and raises ClickException if any issues found.
+        """
+        errors = []
+
+        if not self.name:
+            errors.append("Script name is missing")
+
+        if not self.brief_lines:
+            errors.append("BRIEF tag is missing or empty")
+
+        if errors:
+            for error in errors:
+                click.echo(f"Validation error: {error}", err=True)
+            raise click.ClickException("Documentation validation failed")
+
+    def to_dict(self) -> dict:
+        """Convert to dict with properties evaluated, excluding empty fields."""
+        result = {}
+        result['name'] = self.name
+        result['brief'] = self.brief
+        if self.desc_lines:
+            result['desc'] = self.desc
+        if self.usage_lines:
+            result['usage'] = self.usage
+        if self.deps_lines:
+            result['deps'] = self.deps
+        return result
+
+
+
+def read_lines(file_path: Path):
+    """Generator that yields lines from a file."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                yield line.rstrip('\n\r')
+    except (IOError, OSError) as e:
+        raise click.ClickException(f"Error reading {file_path}: {e}")
+
+
+def find_doc_start(lines):
+    """
+    Generator that skips lines until it finds the first documentation tag.
+
+    Yields lines starting from the first BRIEF/DESC/USAGE/DEPS tag.
+    Only searches the first 20 lines.
+    """
+    for i, line in enumerate(lines):
+        if i >= 20:
+            # Searched first 20 lines, no doc found
+            return
+        if TAG_LABEL_PATTERN.match(line):
+            # Found doc start, yield this line and all subsequent
+            yield line
+            yield from lines
+            return
+
+
+def take_while_doc_continues(lines):
+    """
+    Generator that yields lines while documentation continues.
+
+    Stops after encountering 5 consecutive non-empty, non-doc lines.
+    """
+    non_doc_count = 0
+
+    for line in lines:
+        # Empty lines don't count toward the stop condition
+        if not line.strip():
+            yield line
+            continue
+
+        # Check if this is a doc line
+        if TAG_LABEL_PATTERN.match(line):
+            non_doc_count = 0
+            yield line
+        else:
+            non_doc_count += 1
+            if non_doc_count >= 5:
+                # Stop reading
+                return
+            yield line
+
+
+def extract_tags(lines):
+    """
+    Generator that extracts (tag, content) tuples from doc lines.
+
+    Yields only lines that match the tag pattern.
+    """
+    for line in lines:
+        match = TAG_LINE_PATTERN.match(line)
+        if match:
+            tag, content = match.groups()
+            yield (tag, content.strip())
+
+
+def build_doc(tag_content_pairs) -> ScriptDoc:
+    """
+    Build a ScriptDoc from a sequence of (tag, content) pairs.
+
+    Multi-line tags are collected into lists:
+    - Non-empty lines: append content
+    - Empty lines (just tag): append empty string (creates paragraph break when joined)
+    """
+    doc = ScriptDoc()
+
+    for tag, content in tag_content_pairs:
+        match tag:
+            case 'BRIEF':
+                doc.brief_lines.append(content)
+            case 'DESC':
+                doc.desc_lines.append(content)
+            case 'USAGE':
+                doc.usage_lines.append(content)
+            case 'DEPS':
+                doc.deps_lines.append(content)
+
+    return doc
+
+
+def is_script(file_path: Path) -> bool:
+    """
+    Check if a file is a script by looking for a shebang (#!).
+
+    Returns True if the file starts with #!, False otherwise.
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            return f.read(2) == b'#!'
+    except Exception:
+        return False
+
+
+def parse_script_docs(file_path: Path) -> ScriptDoc:
+    """
+    Parse documentation tags from a script file.
+
+    Uses a generator pipeline:
+    1. Read lines from file
+    2. Find where doc tags start (first 20 lines)
+    3. Continue reading while doc continues (stop after 5 non-doc lines)
+    4. Extract tag/content pairs
+    5. Build ScriptDoc structure
+    """
+    lines = read_lines(file_path)
+    doc_lines = find_doc_start(lines)
+    continued_lines = take_while_doc_continues(doc_lines)
+    tag_pairs = extract_tags(continued_lines)
+    doc = build_doc(tag_pairs)
+
+    # Set the script name from the file basename
+    doc.name = file_path.name
+
+    return doc
+
+
+@click.group()
+def cli():
+    """Extract and display documentation from scripts."""
+    pass
+
+
+@cli.command()
+@click.argument('script_files', type=click.Path(exists=True, path_type=Path), nargs=-1, required=False)
+@click.option(
+    '--format', '-f',
+    type=click.Choice(['json', 'markdown', 'rich', 'readme', 'custom'], case_sensitive=False),
+    default='json',
+    help='Output format'
+)
+@click.option(
+    '--output', '-o',
+    type=click.File('w'),
+    default='-',
+    help='Output file (default: stdout)'
+)
+@click.option(
+    '--template', '-t',
+    type=click.Path(exists=True, path_type=Path),
+    help='Custom Jinja2 template file (required for --format custom)'
+)
+@click.option(
+    '--show-default-template',
+    is_flag=True,
+    help='Print the default markdown template and exit'
+)
+@click.option(
+    '--strict',
+    is_flag=True,
+    help='Validate documentation and fail if BRIEF is missing'
+)
+def dump(script_files: tuple[Path, ...], format: str, output, template: Path | None, show_default_template: bool, strict: bool):
+    """
+    Extract documentation from scripts and output in specified format.
+
+    SCRIPT_FILES: One or more script files to parse
+    """
+    # Handle --show-default-template flag
+    if show_default_template:
+        click.echo(DEFAULT_MARKDOWN_TEMPLATE)
+        return
+
+    # Validate script_files are provided when not showing template
+    if not script_files:
+        raise click.ClickException("At least one SCRIPT_FILE is required")
+
+    # Validate template requirement for custom format
+    if format.lower() == 'custom' and not template:
+        raise click.ClickException("--template is required when using --format custom")
+
+    # Parse all scripts
+    scripts = []
+    for script_file in script_files:
+        # Skip non-files (directories, etc.)
+        if not script_file.is_file():
+            click.echo(f"Skipping {script_file}: not a file", err=True)
+            continue
+
+        # Check for shebang - only process actual scripts
+        if not is_script(script_file):
+            click.echo(f"Skipping {script_file}: not a script (no shebang)", err=True)
+            continue
+
+        try:
+            doc = parse_script_docs(script_file)
+        except Exception as e:
+            click.echo(f"Error reading {script_file}: {e}", err=True)
+            continue
+
+        # Verify documentation if strict mode is enabled
+        if strict:
+            try:
+                doc.verify()
+            except click.ClickException:
+                # Verification failed, skip this script
+                continue
+
+        doc_dict = doc.to_dict()
+
+        if not doc_dict:
+            click.echo(f"No documentation tags found in {script_file}", err=True)
+            continue
+
+        scripts.append(doc_dict)
+
+    if not scripts:
+        click.echo("No valid documentation found in any scripts", err=True)
+        return
+
+    console = Console(file=output)
+
+    match format.lower():
+        case 'json':
+            # Rich will pretty-print JSON when outputting to a terminal
+            import json
+            json_str = json.dumps(scripts, indent=2)
+            console.print(JSON(json_str))
+        case 'markdown':
+            # Use default markdown template and output raw markdown
+            tmpl = Template(DEFAULT_MARKDOWN_TEMPLATE)
+            result = tmpl.render(scripts=scripts)
+            click.echo(result, file=output)
+        case 'rich':
+            # Use default markdown template and render with Rich
+            tmpl = Template(DEFAULT_MARKDOWN_TEMPLATE)
+            result = tmpl.render(scripts=scripts)
+            md = Markdown(result)
+            console.print(md)
+        case 'readme':
+            # Use README template for brief summary
+            tmpl = Template(README_TEMPLATE)
+            result = tmpl.render(scripts=scripts)
+            click.echo(result, file=output)
+        case 'custom':
+            # Load custom template from file and output raw result
+            template_content = template.read_text()
+            tmpl = Template(template_content)
+            result = tmpl.render(scripts=scripts)
+            click.echo(result, file=output)
+
+
+if __name__ == '__main__':
+    cli()

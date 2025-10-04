@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# BRIEF: Create new files from templates
+# DESC: Copies a template file from SOURCE_TEMPLATES directory to create
+# DESC: a new file with the specified name.
+# USAGE: new <template> <file>
+# USAGE: new -l              List available templates
+# DEPS: SOURCE_TEMPLATES environment variable
 
 set -e
 
