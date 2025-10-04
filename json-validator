@@ -1,0 +1,88 @@
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "jsonschema",
+#     "pyyaml",
+#     "click",
+#     "httpx",
+#     "rich",
+# ]
+# ///
+
+
+import json
+import re
+
+import jsonschema
+import yaml
+import click
+import httpx
+import rich
+
+URL_PATTERN = re.compile(r'^https?://')
+
+def validate(json_files, schema):
+    all_good = True
+    for json_file in json_files:
+        with open(json_file, 'r') as fjson:
+            try:
+                jsonschema.validate(yaml.safe_load(fjson), schema)
+            except jsonschema.exceptions.ValidationError as ve:
+                all_good = False
+                print("-"*80)
+                print(json_file)
+                print("-"*80)
+                print("Error: " + ve.message)
+                print("in validator:" + ve.validator)
+                print("  with value: " + str(ve.validator_value))
+                print("on instance: " + str(ve.instance))
+                if ve.context:
+                    print("  with context: " + str(ve.context))
+                if ve.cause:
+                    print("where cause is: " + str(ve.cause))
+                print("-"*80)
+
+    return all_good
+
+def get_schema(schema):
+    if URL_PATTERN.match(schema):
+        res = httpx.get(schema)
+        res.raise_for_status()
+        return res.json()
+    with open(schema, 'r') as fschema:
+        return yaml.safe_load(fschema)
+
+
+@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
+@click.argument('json_files', type=str, nargs=-1, required=True)
+@click.option('--schema', type=str,
+    help='The schema file or url to use for validation',
+    required=True)
+@click.option('--dump-schema', is_flag=True,
+    help='Dump the schema to stdout.')
+def main(json_files, schema, dump_schema):
+    """
+    Validate JSON/YAML files against a schema
+
+    json-validator [--schema <schema_file>] [--dump-schema] <json_file>...
+
+    json_file: The JSON/YAML file to validate. Can be specified multiple times.
+    """
+
+    try:
+        schema_data = get_schema(schema)
+    except httpx.HTTPStatusError as e:
+        raise click.ClickException(f"Error getting schema: {e}")
+    except (json.JSONDecodeError, yaml.YAMLError) as e:
+        raise click.ClickException(f"Error parsing schema: {e}")
+
+    if dump_schema:
+        rich.console.Console().print(json.dumps(schema_data, indent=2))
+        return
+    if not validate(json_files, schema_data):
+        raise click.ClickException("Validation failed")
+
+
+if __name__ == '__main__':
+    main()

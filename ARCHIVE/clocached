@@ -1,0 +1,143 @@
+#!/bin/bash
+
+# CLOCache: Command Line Output Cache
+# Copyright (C) 2017 Jacobo de Vera
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+
+
+CACHE_DIR="/tmp/clocache/$USER/"
+
+# The default cache duration is 15 minutes, but it can be changed by loading
+# the CACHE_EXPIRATION_SECONDS environment variable with a number of seconds
+CACHE_EXPIRATION_SECONDS_DEFAULT="$(( 15 * 60 ))"
+
+CGREEN="[1;32m"
+CBLUE="[1;34m"
+CRESET="[0m"
+
+usage()
+{
+    cat <<USAGE
+${CGREEN}Usage:${CRESET}
+
+    $(basename $0) [options] COMMAND
+
+${CGREEN}Options:${CRESET}
+
+    -f      Forces the excution of the command, refreshing the cache value
+    -d      Show debug information
+    -h      Show this help and exit
+
+${CGREEN}Environment:${CRESET}
+
+    ${CBLUE}CACHE_EXPIRATION_SECONDS${CRESET}
+            Number of seconds after which a previously cached value is
+            considered expired.
+USAGE
+}
+
+debug()
+{
+    [[ -n $do_debug ]] && echo "${CGREEN}DEBUG: ${CBLUE}$*${CRESET}"
+}
+
+OPTIND=1
+
+do_debug=
+
+while getopts 'hfd' opt
+do
+    case "$opt" in
+    h)
+        usage
+        exit 0
+        ;;
+    f)
+        do_force=1
+        ;;
+    d)
+        do_debug=1
+        ;;
+    esac
+done
+
+shift $((OPTIND-1))
+
+if [[ -z $1 ]]; then
+    usage
+    exit 1
+fi
+
+
+function hash_command
+{
+    echo -n "$@" | md5sum | cut -f1 -d' '
+}
+
+cache_name=$(hash_command "$@")
+cache_seconds=${CACHE_EXPIRATION_SECONDS:-$CACHE_EXPIRATION_SECONDS_DEFAULT}
+
+cache_file="${CACHE_DIR}/$cache_name"
+
+debug "Command: $*"
+debug "Cache max age: $cache_seconds seconds"
+debug "Cache name: $cache_name" 
+debug "Cache file: $cache_file" 
+
+
+function log()
+{
+    debug "$cache_name $*"
+    logger -t cachedcounts "$cache_name $*"
+}
+
+function is_cache_expired
+{
+    if [[ ! -d $CACHE_DIR ]]
+    then
+        log "Creating directory for output cache: $CACHE_DIR"
+        mkdir -p "$CACHE_DIR"
+        return 0
+    fi
+    if [[ ! -f $cache_file ]]
+    then
+        return 0
+    fi
+    local max_age="$1"
+    test $(stat -L --format %Y $cache_file) -lt $(( $(date +%s) - $cache_seconds ))
+}
+
+
+if [[ -n $do_force ]]
+then
+    log "Cache age disregarded. Forced run requested"
+    "$@" > "$cache_file"
+elif is_cache_expired
+then
+    log "Cache is expired (older than $cache_seconds seconds), fetching"
+    "$@" > "$cache_file"
+else
+    debug "Results fetched from active cache"
+fi
+
+
+cat "$cache_file"
+

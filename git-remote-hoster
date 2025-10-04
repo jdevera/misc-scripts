@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SYMBOL_GITHUB=""
+SYMBOL_GITLAB=""
+SYMBOL_BITBUCKET=""
+SYMBOL_GITEA=""
+SYMBOL_FORGEJO=""
+SYMBOL_OTHER=""
+
+__REMOTE_SYMBOL=
+__REMOTE_NAME=
+function remote_is() {
+    case $1 in
+        github)
+            __REMOTE_SYMBOL="$SYMBOL_GITHUB"
+            __REMOTE_NAME="GitHub"
+        ;;
+        gitlab)
+            __REMOTE_SYMBOL="$SYMBOL_GITLAB"
+            __REMOTE_NAME="GitLab"
+        ;;
+        bitbucket)
+            __REMOTE_SYMBOL="$SYMBOL_BITBUCKET"
+            __REMOTE_NAME="Bitbucket"
+        ;;
+        gitea)
+            __REMOTE_SYMBOL="$SYMBOL_GITEA"
+            __REMOTE_NAME="Gitea"
+        ;;
+        forgejo)
+            __REMOTE_SYMBOL="$SYMBOL_FORGEJO"
+            __REMOTE_NAME="Forgejo"
+        ;;
+        other)
+            __REMOTE_SYMBOL="$SYMBOL_OTHER"
+            __REMOTE_NAME="Other"
+        ;;
+        *)
+            echo "Unknown remote: $1"
+            exit 1
+        ;;
+    esac
+}
+
+function help() {
+    cat <<EOF
+Usage: git-remote-hoster [options] [directory]
+
+Options:
+    --help, -h     Show this help
+    --force, -f    Do not check if the directory is a git work tree,
+                   assume it's been checked before.
+    --json, -j     JSON output. Shows the remote symbol, name and directory.
+    --verbose, -v  Verbose output. Shows the remote symbol, name and directory.
+
+Arguments:
+    directory  The directory to check. If not provided, the current directory is used.
+EOF
+}
+
+
+FORCE_MODE=
+JSON_OUTPUT=
+VERBOSE=
+DIR=
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --help|-h)
+            help
+            exit 0
+            ;;
+        --force|-f)
+            FORCE_MODE=1
+            shift
+            ;;
+        --json|-j)
+            JSON_OUTPUT=1
+            shift
+            ;;
+        --verbose|-v)
+            VERBOSE=1
+            shift
+            ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+        *)
+            DIR="$1"
+            shift
+            ;;
+    esac
+done
+
+if [[ -z $DIR ]]; then
+    DIR="$(pwd)"
+fi
+
+if [[ ! -d $DIR ]]; then
+    echo "Directory not found: $DIR" >&2
+    exit 1
+fi
+
+if [[ $FORCE_MODE != 1 ]] && ! command git -C "$DIR" rev-parse --is-inside-work-tree &> /dev/null
+then
+    exit 1
+fi
+
+git_remote=$(command git -C "$DIR" ls-remote --get-url 2> /dev/null)
+
+if [[ $git_remote =~ github ]]; then
+    remote_is github
+
+elif [[ $git_remote =~ gitlab ]]; then
+    remote_is gitlab
+    
+elif [[ $git_remote =~ bitbucket ]]; then
+    remote_is bitbucket
+
+else
+    # Try to detect Gitea vs Forgejo
+    url=$(echo "$git_remote" | sed -E 's#(git@|https://)([^:/]+)[:/]([^/]+)/.*#https://\2#')
+    forge_type=$(curl -s "$url/api/v1/version" 2>/dev/null | jq -r 'if has("forgejo_version") then "Forgejo" else "Gitea" end' 2>/dev/null || echo "Unknown")
+
+    if [[ "$forge_type" == "Forgejo" ]]; then
+        remote_is forgejo
+    elif [[ "$forge_type" == "Gitea" ]]; then
+        remote_is gitea
+    else
+        remote_is other
+    fi
+fi
+
+if [[ $JSON_OUTPUT == 1 ]]; then
+    jq -n \
+    --arg symbol "$__REMOTE_SYMBOL" \
+    --arg name "$__REMOTE_NAME" \
+    --arg dir "$DIR" \
+    '{symbol: $symbol, name: $name, dir: $dir}'
+elif [[ $VERBOSE == 1 ]]; then
+    echo "$__REMOTE_SYMBOL $__REMOTE_NAME $DIR"
+else
+    echo "$__REMOTE_SYMBOL"
+fi

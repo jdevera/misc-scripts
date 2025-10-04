@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# Get a list of jira tickets assigned to me, chose one
+# Then create a git branch with name based on the ticket
+set -e
+
+COLOR_NEW_BRANCH=light_cyan
+COLOR_BASE_BRANCH=light_purple
+COLOR_UPSTREAM=light_green
+
+BRANCH_KEY_SEPARATOR=-
+BRANCH_SLUG_SEPARATOR=_
+
+# -----------------------------------------------------------------------------
+# This function gets issues from JIRA, one per line, in a human readable
+# style that you can use to determine which one you want to create a branch for
+# -----------------------------------------------------------------------------
+_get_issues()
+{
+    jira mine --porcelain
+}
+
+# -----------------------------------------------------------------------------
+# Take ONE of the lines from `get_issues`, parse them and load both the issue
+# KEY and the issue SUMMARY in the issue_key and issue_summary variables,
+# respectively.
+#
+# This gives you the flexibility to further query JIRA if you wish/need to.
+# -----------------------------------------------------------------------------
+_parse_issue()
+{
+    local issue_line=$1
+    issue_summary="$(cut -d' ' -f2- <<< "$issue_line")"
+    issue_key="$(cut -d' ' -f1 <<< "$issue_line")"
+}
+
+
+
+function die()
+{
+    echo "$@" >&2
+    exit 1
+}
+
+assert_has_command()
+{
+    local command
+    command=$1
+    if ! type "$command" >& /dev/null
+    then
+        die "Required command ' $command' not found in PATH"
+    fi
+}
+
+ansi_color()
+{
+    local color
+    case "$1" in
+        black)        color="\e[0;30m";;
+        red)          color="\e[0;31m";;
+        green)        color="\e[0;32m";;
+        brown)        color="\e[0;33m";;
+        blue)         color="\e[0;34m";;
+        purple)       color="\e[0;35m";;
+        cyan)         color="\e[0;36m";;
+        light_gray)   color="\e[0;37m";;
+        dark_gray)    color="\e[1;30m";;
+        light_red)    color="\e[1;31m";;
+        light_green)  color="\e[1;32m";;
+        yellow)       color="\e[1;33m";;
+        light_blue)   color="\e[1;34m";;
+        light_purple) color="\e[1;35m";;
+        light_cyan)   color="\e[1;36m";;
+        white)        color="\e[1;37m";;
+        none)         color="\e[0m";;
+    esac
+    echo "$color"
+}
+
+function _colorise()
+{
+    local color=$(ansi_color "$1")
+    shift
+    echo "${color}$*\e[0m"
+}
+
+function _branch_off()
+{
+    local branch="$1"
+    [[ -n $branch ]] || die "Missing branch name"
+
+    local starting_branch=$(command git rev-parse --abbrev-ref HEAD)
+
+    if ! local upstream="$(command git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)"
+    then
+       upstream=''
+    fi
+
+    command git checkout -b "$branch"
+    [[ -n $upstream  ]] && command git branch --set-upstream-to="$upstream" HEAD
+    
+    new_branch=$(_colorise "$COLOR_NEW_BRANCH" "$branch")
+    base_branch=$(_colorise "$COLOR_BASE_BRANCH" "$starting_branch")
+    
+    echo -en "\nNew branch $new_branch starting in "
+    echo -en "$base_branch"
+    if [[ -n $upstream ]]
+    then
+        upstream=$(_colorise "$COLOR_UPSTREAM" "$upstream")
+        echo -en " with upstream set to $upstream\n\n"
+    fi
+}
+
+function _branch_name_from_issue()
+{
+    local issue_title="$(slugify --separator ' ' --stdin <<<"$issue_summary")"
+    local prompt="$(cat <<EOP
+NEW BRANCH for $issue_key: $issue_summary
+    Enter a name for the new branch.
+    (spaces will be converted to underscores)
+Name >
+EOP
+)"
+    read -p "$prompt " -e -i "$issue_title" || die "Could not get desired branch name"
+    local summary_slug="${REPLY// /$BRANCH_SLUG_SEPARATOR}"
+    branch_name="${issue_key}${BRANCH_KEY_SEPARATOR}${summary_slug}"
+}
+
+
+
+
+assert_has_command jira
+assert_has_command slugify
+
+issue_line=$(_get_issues | fzf -0 -1)
+_parse_issue "$issue_line"
+[[ -z $issue_key || -z $issue_summary ]] && die "Error parsing issue: $issue_line"
+
+_branch_name_from_issue
+[[ -z $branch_name ]] && die "Could not infer branch name from issue: $issue_line"
+
+_branch_off "$branch_name"
+
+# vim: fdm=syntax :

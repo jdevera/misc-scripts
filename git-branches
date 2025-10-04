@@ -1,0 +1,283 @@
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "colored",
+# ]
+# ///
+
+__description__ = ''
+
+# ---------------------------------------------------------------------------
+# Standard imports:
+import sys
+import argparse
+import subprocess
+import collections
+import re
+import os
+
+# Third party imports
+# from fabulous import color
+import colored
+
+# Local imports
+
+# ---------------------------------------------------------------------------
+
+
+class Color(object):
+
+    def __init__(self):
+        self._functions = {}
+        self._reset = colored.attr('reset')
+
+    def _maybe_reset(self, string):
+        output = string
+        if not string.endswith(self._reset):
+            output += self._reset
+        return output
+
+    def bold(self, string):
+        return self._maybe_reset("{}{}".format(colored.attr('bold'), string))
+
+    def get_colorer(self, colorname):
+        def func(string):
+            return self._maybe_reset(
+                    "{}{}".format(colored.fg(colorname), string))
+        return func
+
+
+    def __getattr__(self, colorname):
+        func = self._functions.get(colorname, None)
+        if func is None:
+            func = self.get_colorer(colorname)
+            self._functions[colorname] = func
+        return func
+color = Color()
+
+DEBUG = 'DEBUG' in os.environ
+
+class Headers:
+    CURRENT = 'Current branch'
+    JIRA = 'Branches with linked Jira ticket'
+    RESOLVED = 'Resolved branches'
+    TRACKING = 'Remote Tracking branches'
+    OTHER = 'Other unresolved branches'
+    PARKED = 'Parked branches'
+
+    order = [
+            CURRENT,
+            TRACKING,
+            JIRA,
+            OTHER,
+            PARKED,
+            RESOLVED,
+            ]
+
+def classify_branches(output):
+    branches = collections.defaultdict(list)
+    for line in output:
+        branch_line = line
+        current = False
+        if branch_line.startswith('*'):
+            current = True
+            branch_line = branch_line[1:]
+
+        branch_data = branch_line.lstrip().split(None, 2)
+        if current:
+            branches[Headers.CURRENT].append(line)
+        if branch_data[0].startswith('resolved/'):
+            branches[Headers.RESOLVED].append(line)
+            # Resolved is only resolved
+            continue
+        if branch_data[0].startswith('parked/'):
+            branches[Headers.PARKED].append(line)
+            # Resolved is only resolved
+            continue
+        if re.match(r'^([A-Z]+-\d+)[-_]', branch_data[0]):
+            branches[Headers.JIRA].append(line)
+            continue
+        if re.match(r'^\[[^\]]+\]', branch_data[2]):
+            branches[Headers.TRACKING].append(line)
+            continue
+        branches[Headers.OTHER].append(line)
+    return branches
+
+def colout_get_group_ranges(m, line):
+    """
+    For a given successful match object previously obtained from matching line,
+    obtain a list of the index ranges on line where both matches and
+    non-matches are
+
+    Returns a list of tuples, where each tuple contains both the start and end
+    of the range [,) and the group number in case of a match or None in case of
+    a non-match.
+    """
+    ngroups = len(m.groups())
+    last_index = 0
+    ranges = []
+    for i in range(1, ngroups+1):
+        group_start, group_end = (m.start(i), m.end(i))
+        if group_start == group_end:
+            continue
+        if group_start > last_index:
+            ranges.append((last_index, group_start, None))
+        ranges.append((group_start, group_end, i))
+        last_index= group_end
+    if last_index < len(line):
+        ranges.append((last_index, len(line), None))
+    return ranges
+
+def colout(line, regex, *modifiers):
+
+    if not modifiers:
+        return line
+
+    m = re.search(regex, line)
+    if not m:
+        return line
+
+    ngroups = len(m.groups())
+
+    # If there are no groups, just modify the whole input string
+    if ngroups == 0:
+        return modifiers[0](line)
+
+
+    # If not enough modifiers have been provided, repeat the last one
+    if len(modifiers) < ngroups:
+        modifiers = list(modifiers)
+        modifiers += [modifiers[-1]] * (len(modifiers) - ngroups)
+
+    ranges = colout_get_group_ranges(m, line)
+
+    colored_line = []
+    for range_start, range_end, idx in ranges:
+        token = line[range_start:range_end]
+        colored_line.append( str(modifiers[idx - 1](token)) if idx else token)
+
+    if DEBUG:
+        print("----------------DEBUG---------------")
+        print(m.groups())
+
+        for r, l in zip(ranges, colored_line):
+            print("[%3d, %3d) %s: %s%s%s" %(
+                    r[0], r[1],
+                    '%2d'%r[2] if r[2] else ' N',
+                    color.bold(color.red('>>')),
+                    l,
+                    color.bold(color.red('<<')),
+                    ))
+        print("----------------/DEBUG---------------")
+
+    new_line = ''.join(colored_line)
+
+    return new_line
+
+def print_title(title, with_color=True):
+    title_line = ">>> %s:" % title
+    if with_color:
+        # print color.highlight256('orangered', title_line)
+        print(color.bold(color.cyan(title_line)))
+    else:
+        print(title_line)
+
+def print_branch(branch, section):
+    def bolder(f):
+        return lambda x: color.bold(f(x))
+    def colorer(acolor):
+        return lambda x: color.get_colorer(acolor)(x)
+
+    if branch.startswith('*'): # current
+        color_branch = colout(branch, r'^. (\S+)\s+', bolder(color.green))
+    elif section == Headers.TRACKING:
+        color_branch = colout(branch, r'^. (\S+)\s+', bolder(color.red))
+    elif section == Headers.JIRA:
+        color_branch = colout(branch, '^. ([A-Z]+-\d+)(\S+)\s+', bolder(color.yellow), color.yellow)
+    elif section == Headers.RESOLVED:
+        color_branch = colout(branch, r'^.+$', color.black)
+    else:
+        color_branch = branch
+
+    if section != Headers.RESOLVED:
+        # Color the hash and remote branches
+        color_branch = colout(color_branch,
+                              r'^. \S+\s+(\S+)\s+(?:\[([^\]:]+))?',
+                              colorer('orange_red_1'), bolder(color.blue)) # orangered
+
+    print(color_branch)
+
+
+
+
+def print_branches(branches, colored=True):
+    for header in Headers.order:
+        value = branches.get(header)
+        if not value:
+            continue
+        print_title(header, colored)
+        for b in value:
+            if colored:
+                print_branch(b, header)
+            else:
+                print(b)
+        print()
+
+def get_branches(args):
+    if args.filter:
+        output = sys.stdin.read()
+    else:
+        try:
+            output = subprocess.check_output(['git', 'branch', '--list', '-vv', '--color=never']).decode()
+        except subprocess.CalledProcessError as error:
+            sys.stderr.write(error.output)
+            sys.exit(error.returncode)
+    output = output.rstrip().split('\n')
+    return output
+
+
+def do(args):
+    branches_text = get_branches(args)
+    branches = classify_branches(branches_text)
+    if not args.all:
+        branches[Headers.RESOLVED] = []
+        branches[Headers.PARKED] = []
+    print_branches(branches, args.color)
+
+
+def parse_args(argv):
+    """ Parse and validate command line arguments """
+    parser = argparse.ArgumentParser(description=__description__)
+    parser.add_argument('-a', '--all', action='store_true', default=False)
+    parser.add_argument('-c', '--color', choices=['never', 'always', 'auto'] , default='auto')
+    parser.add_argument('-f', '--filter', action='store_true', default=False)
+
+    args = parser.parse_args(argv[1:])
+    if args.color == 'auto':
+        if "FORCE_COLOR" in os.environ:
+            args.color = True
+        elif "NO_COLOR" in os.environ:
+            args.color = False
+        else:
+            args.color = sys.stdout.isatty()
+    elif args.color == 'always':
+        args.color = True
+    else:
+        args.color = False
+
+    return args
+
+
+def main(argv=[__name__]):
+    """ Run this program """
+    args = parse_args(argv)
+    try:
+
+        do(args)
+
+    except KeyboardInterrupt:
+        sys.exit(-1)
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv) or 0)
