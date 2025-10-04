@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+# uv-script-docker-debian - Test standalone UV scripts in Linux Docker container
+# Usage: uv-script-docker-debian <script_path> [script_arguments...]
+#
+# Docker Volumes Used:
+# - uv-cache: Persists /root/.cache/uv (raw packages, source tarballs)
+# - uv-local-share: Persists /root/.local/share/uv (Python versions, environment metadata, built wheels)
+# These volumes prevent re-downloading Python and packages on each run.
+
+set -euo pipefail
+
+DOCKER_IMAGE="ghcr.io/astral-sh/uv:trixie-slim"
+
+die() {
+    echo "$*" >&2
+    exit 1
+}
+
+[[ $# -eq 0 ]] && die "Usage: $0 <script_path> [script_arguments...]"
+
+SCRIPT_PATH="$1"
+shift
+
+[[ ! -f "$SCRIPT_PATH" ]] && die "Script not found: $SCRIPT_PATH"
+
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+SCRIPT_NAME="$(basename "$SCRIPT_PATH")"
+
+# Check if we're in an interactive terminal
+if [[ -t 0 && -t 1 && -t 2 ]]; then
+    INTERACTIVE_FLAGS="-it"
+else
+    INTERACTIVE_FLAGS=""
+fi
+
+# Build the docker command with persistent UV cache using Docker named volumes
+DOCKER_CMD=(
+    docker
+    run
+    --rm
+    "$INTERACTIVE_FLAGS"
+    -v "$SCRIPT_DIR":/workspace
+    -v uv-cache:/root/.cache/uv                    # UV package cache (raw packages, source tarballs)
+    -v uv-local-share:/root/.local/share/uv        # UV environment cache (Python versions, metadata, built wheels)
+    -w /workspace
+    "$DOCKER_IMAGE"
+    uv run --script "$SCRIPT_NAME"
+    "$@"
+)
+
+# Execute the command
+"${DOCKER_CMD[@]}"
