@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+# BRIEF: Interactively select a chezmoi-managed file with fzf
+# DESC: Shows managed files with their destination paths, supports preview with bat
+# DESC: and opening in editor with Ctrl-O. Translates chezmoi source paths to their
+# DESC: final destination paths by removing prefixes and extensions.
+# DEPS: chezmoi, fzf, fd, bat
+
+DOT_CHEZMOI_PREFIXES=(
+    dot
+    after
+    before
+    create
+    empty
+    encrypted
+    external
+    exact
+    executable
+    modify
+    once
+    onchange
+    private
+    readonly
+    remove
+    run
+    symlink
+)
+DOT_CHEZMOI_EXTENSIONS=(
+    tmpl
+    age
+    asc
+)
+DOT_CHEZMOI_PREFIX_PATTERN=$(
+    IFS='|'
+    echo "${DOT_CHEZMOI_PREFIXES[*]}"
+)
+DOT_CHEZMOI_EXTENSION_PATTERN=$(
+    IFS='|'
+    echo "${DOT_CHEZMOI_EXTENSIONS[*]}"
+)
+
+__chezmoi_remove_prefixes() {
+    local name=$1
+
+    local has_dot=false
+    # Handle other prefixes
+    while true; do
+        [[ $name == literal_* ]] && break
+        if [[ $name =~ ^($DOT_CHEZMOI_PREFIX_PATTERN)_(.+)$ ]]; then
+            if [[ ${BASH_REMATCH[1]} == "dot" ]]; then
+                has_dot=true
+            fi
+            name=${BASH_REMATCH[2]}
+        else
+            break
+        fi
+    done
+    if [[ $has_dot == true ]]; then
+        name=".${name}"
+    fi
+    echo "$name"
+}
+
+__chezmoi_remove_prefixes_from_path() {
+    local path=$1
+    local dirname
+    local basename
+    dirname=$(dirname "$path")
+    basename=$(basename "$path")
+
+    local transformed_parts=()
+    IFS='/' read -ra path_parts <<<"$dirname"
+    for part in "${path_parts[@]}"; do
+        if [[ -n "$part" ]]; then
+            transformed_parts+=("$(__chezmoi_remove_prefixes "$part")")
+        fi
+    done
+
+    transformed_parts+=("$(__chezmoi_remove_prefixes "$basename")")
+    (
+        IFS=/
+        echo "${transformed_parts[*]}"
+    )
+}
+
+__chezmoi_remove_extensions() {
+    local name=$1
+
+    # Handle edge case for single extensions that start with a dot
+    if [[ "$name" =~ ^\.($DOT_CHEZMOI_EXTENSION_PATTERN)$ ]]; then
+        echo "$name"
+        return
+    fi
+
+    # Split the name into parts separated by dots
+    IFS='.' read -ra parts <<<"$name"
+    local result_parts=()
+    local literal_found=false
+
+    # Process parts from left to right
+    for ((i = 0; i < ${#parts[@]}; i++)); do
+        local part="${parts[i]}"
+
+        # Check if we hit a literal marker and we have previous parts
+        if [[ "$part" == "literal" && ${#result_parts[@]} -gt 0 ]]; then
+            # Found literal marker - DON'T add literal itself, just preserve everything after it
+            # Add all remaining parts after literal (but not the literal itself)
+            for ((j = i + 1; j < ${#parts[@]}; j++)); do
+                result_parts+=("${parts[j]}")
+            done
+            literal_found=true
+            break
+        elif [[ "$literal_found" == false && "$part" =~ ^($DOT_CHEZMOI_EXTENSION_PATTERN)$ ]]; then
+            # This is a removable extension - only skip if we have previous parts
+            # Special case: if this is the first part (file starts with extension), keep it
+            if [[ ${#result_parts[@]} -eq 0 ]]; then
+                result_parts+=("$part")
+            # Otherwise, skip this extension (don't add it)
+            fi
+        else
+            # Regular part - add it
+            result_parts+=("$part")
+        fi
+    done
+
+    # Join result parts with dots
+    echo "$(
+        IFS='.'
+        echo "${result_parts[*]}"
+    )"
+}
+
+chezmoi_get_destination_path() {
+    local path=$1
+    local dirname
+    local basename
+    dirname=$(dirname "$path")
+    basename=$(basename "$path")
+
+    local transformed_parts=()
+
+    if [[ "$dirname" != "." ]]; then
+        IFS='/' read -ra path_parts <<<"$dirname"
+        for part in "${path_parts[@]}"; do
+            if [[ -n "$part" ]]; then
+                transformed_parts+=("$(__chezmoi_remove_prefixes "$part")")
+            fi
+        done
+    fi
+
+    local unprefixed_basename
+    unprefixed_basename=$(__chezmoi_remove_prefixes "$basename")
+    transformed_parts+=("$(__chezmoi_remove_extensions "$unprefixed_basename")")
+    (
+        IFS=/
+        echo "${transformed_parts[*]}"
+    )
+}
+
+chezmoi_pick_file() {
+    local source_path
+    local query_args=()
+    if [[ -n $1 ]]; then
+        query_args=(--query "$@")
+    fi
+    source_path="$(chezmoi source-path)"
+    (
+        fd --base-directory="$source_path" --type f --type l --hidden |
+            while read -r file; do
+                destination_path=$(chezmoi_get_destination_path "$file")
+                printf "%s\t%s\n" "$destination_path" "$file"
+            done
+    ) |
+        fzf \
+            --delimiter="\t" \
+            --accept-nth=2 \
+            --with-nth=1 \
+            --exit-0 \
+            --preview 'bat --style=full --color=always '"$source_path/{2}" \
+            --bind 'ctrl-o:execute:$EDITOR '"$source_path/{2}" \
+            "${query_args[@]}"
+}
+
+chezmoi_pick_file "$@"

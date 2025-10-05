@@ -23,6 +23,8 @@ cog.out(res.stdout)
 
 - **json-to-yaml** - Convert JSON files to YAML format
 
+- **chezmoi-pick-file** - Interactively select a chezmoi-managed file with fzf
+
 - **git-branches** - Display git branches organized by category with color coding
 
 - **relpath** - Print a path relative to another directory
