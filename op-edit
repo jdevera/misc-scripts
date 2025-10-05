@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# BRIEF: Interactively select and edit a 1Password document
+# DESC: Uses fzf to select a document from 1Password, downloads it to a temporary
+# DESC: file, opens it in your editor, and uploads the changes back to 1Password
+# DEPS: op (1Password CLI), fzf, jq
+
+# Sign in to 1Password first
+op signin
+
+# Get list of documents and format for fzf
+documents=$(op document list --format=json)
+
+# Use fzf to select a document, showing only ID in preview
+selected=$(echo "$documents" | jq -r '.[] | "\(.id)\t\(.title)"' | \
+    fzf --delimiter='\t' \
+        --with-nth=2 \
+        --preview='echo {1}' \
+        --preview-label='Document ID')
+
+# Exit if no selection made
+[[ -z "$selected" ]] && exit 0
+
+# Extract document ID and title
+doc_id=$(echo "$selected" | cut -f1)
+doc_title=$(echo "$selected" | cut -f2)
+
+# Create temporary directory
+temp_dir=$(mktemp -d)
+trap "rm -rf '$temp_dir'" EXIT
+
+# Get the document to temp directory
+temp_file="$temp_dir/$doc_title"
+op document get "$doc_id" --output "$temp_file"
+
+# Open with editor
+${EDITOR:-vi} "$temp_file"
+
+# Upload the edited document back to 1Password
+op document edit "$doc_id" "$temp_file"
+
+echo "Document '$doc_title' updated successfully"
