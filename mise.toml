@@ -1,0 +1,78 @@
+[tools]
+"pipx:cogapp" = "latest"
+"pipx:ruff" = "latest"
+
+[tasks.docs]
+description = "Generate documentation using cog"
+run = "cog -r README.md"
+
+[tasks.generate-manifest]
+description = "Generate manifest of all scripts with metadata"
+run = '''
+#!/usr/bin/env bash
+shopt -s nullglob
+> manifest.json
+for f in src/*; do
+  if [[ -f "$f" ]]; then
+    type=
+    shebang=$(head -1 "$f" 2>/dev/null)
+    if [[ "$shebang" =~ ^#!/.*bash ]]; then
+      type="shell"
+    elif [[ "$shebang" =~ ^#!.*python ]] || [[ "$shebang" =~ ^#!.*uv ]]; then
+      type="python"
+    fi
+    jq -n --arg path "$f" --arg type "$type" \
+        '{path: $path, type: $type}'
+  fi
+done | jq -s . > manifest.json
+'''
+
+[tasks.sh-lint]
+description = "Lint shell scripts with shellcheck"
+depends = ["generate-manifest"]
+run = '''
+#!/usr/bin/env bash
+mapfile -t scripts < <(jq -r '.[] | select(.type=="shell") | .path' manifest.json)
+test -n "$scripts" && shellcheck "${scripts[@]}"
+'''
+
+[tasks.python-lint]
+description = "Lint Python scripts with ruff (includes import sorting check)"
+depends = ["generate-manifest"]
+run = '''
+#!/usr/bin/env bash
+mapfile -t scripts < <(jq -r '.[] | select(.type=="python") | .path' manifest.json)
+test -n "$scripts" && ruff check "${scripts[@]}"
+'''
+
+[tasks.python-format-check]
+description = "Check Python script formatting with ruff"
+depends = ["generate-manifest"]
+run = '''
+#!/usr/bin/env bash
+mapfile -t scripts < <(jq -r '.[] | select(.type=="python") | .path' manifest.json)
+test -n "$scripts" && ruff format --check "${scripts[@]}"
+'''
+
+[tasks.python-format]
+description = "Format Python scripts with ruff"
+depends = ["generate-manifest"]
+run = '''
+#!/usr/bin/env bash
+mapfile -t scripts < <(jq -r '.[] | select(.type=="python") | .path' manifest.json)
+test -n "$scripts" && ruff format "${scripts[@]}"
+'''
+
+[tasks.python-fix]
+description = "Fix Python script issues with ruff (includes import sorting)"
+depends = ["generate-manifest"]
+run = '''
+#!/usr/bin/env bash
+mapfile -t scripts < <(jq -r '.[] | select(.type=="python") | .path' manifest.json)
+test -n "$scripts" && ruff check --fix "${scripts[@]}"
+'''
+
+[tasks.lint-all]
+description = "Lint all scripts"
+depends = ["sh-lint", "python-lint", "python-format-check"]
+
