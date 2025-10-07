@@ -12,6 +12,7 @@ chezmoi_pick_file() {
         query_args=(--query "$@")
     fi
     source_path="$(chezmoi source-path)"
+    # shellcheck disable=SC2016 # Allow $EDITOR in single quotes
     (
         fd --base-directory="$source_path" --type f --type l --hidden |
             while read -r file; do

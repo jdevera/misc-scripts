@@ -22,7 +22,7 @@ usage()
       -l MAX_LENGTH     Maximum allowed line length
 
 USAGE
-    exit $1
+    exit "$1"
 }
 #-----------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ fi
 # Still need at least a file to check
 [[ $# = 0 ]] && usage 1
 
-awk -v linelen=$linelen '
+awk -v linelen="$linelen" '
 {
     if (length() > linelen)
         printf("%s:%d:%s\n", FILENAME, NR, $0);

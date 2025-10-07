@@ -22,19 +22,20 @@ import click
 import httpx
 import rich
 
-URL_PATTERN = re.compile(r'^https?://')
+URL_PATTERN = re.compile(r"^https?://")
+
 
 def validate(json_files, schema):
     all_good = True
     for json_file in json_files:
-        with open(json_file, 'r') as fjson:
+        with open(json_file, "r") as fjson:
             try:
                 jsonschema.validate(yaml.safe_load(fjson), schema)
             except jsonschema.exceptions.ValidationError as ve:
                 all_good = False
-                print("-"*80)
+                print("-" * 80)
                 print(json_file)
-                print("-"*80)
+                print("-" * 80)
                 print("Error: " + ve.message)
                 print("in validator:" + ve.validator)
                 print("  with value: " + str(ve.validator_value))
@@ -43,26 +44,29 @@ def validate(json_files, schema):
                     print("  with context: " + str(ve.context))
                 if ve.cause:
                     print("where cause is: " + str(ve.cause))
-                print("-"*80)
+                print("-" * 80)
 
     return all_good
+
 
 def get_schema(schema):
     if URL_PATTERN.match(schema):
         res = httpx.get(schema)
         res.raise_for_status()
         return res.json()
-    with open(schema, 'r') as fschema:
+    with open(schema, "r") as fschema:
         return yaml.safe_load(fschema)
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
-@click.argument('json_files', type=str, nargs=-1, required=True)
-@click.option('--schema', type=str,
-    help='The schema file or url to use for validation',
-    required=True)
-@click.option('--dump-schema', is_flag=True,
-    help='Dump the schema to stdout.')
+@click.argument("json_files", type=str, nargs=-1, required=True)
+@click.option(
+    "--schema",
+    type=str,
+    help="The schema file or url to use for validation",
+    required=True,
+)
+@click.option("--dump-schema", is_flag=True, help="Dump the schema to stdout.")
 def main(json_files, schema, dump_schema):
     """
     Validate JSON/YAML files against a schema
@@ -86,5 +90,5 @@ def main(json_files, schema, dump_schema):
         raise click.ClickException("Validation failed")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

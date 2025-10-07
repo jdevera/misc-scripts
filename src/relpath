@@ -3,7 +3,7 @@
 # BRIEF: Print a path relative to another directory
 # USAGE: relpath FILE [DIR]
 
-__description__ = 'Prints a given path relative to another directory'
+__description__ = "Prints a given path relative to another directory"
 
 # ---------------------------------------------------------------------------
 # Standard imports:
@@ -13,18 +13,17 @@ import os
 # ---------------------------------------------------------------------------
 
 
-
 def parse_args(argv):
-    """ Parse and validate command line arguments """
+    """Parse and validate command line arguments"""
     parser = argparse.ArgumentParser(description=__description__)
-    parser.add_argument('path')
-    parser.add_argument('base', nargs='?', default='.')
+    parser.add_argument("path")
+    parser.add_argument("base", nargs="?", default=".")
     args = parser.parse_args(argv[1:])
     return args
 
 
 def main(argv=None):
-    """ Run this program """
+    """Run this program"""
     if argv is None:
         argv = [__name__]
     args = parse_args(argv)
@@ -34,5 +33,6 @@ def main(argv=None):
     except KeyboardInterrupt:
         sys.exit(-1)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     sys.exit(main(sys.argv) or 0)

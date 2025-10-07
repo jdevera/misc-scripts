@@ -18,7 +18,7 @@ function usagedie()
 {
     echo "USAGE: new <template> <file>"
     echo "       new -l"
-    die $@
+    die "$@"
 }
 
 function check_env()
@@ -38,7 +38,7 @@ function main()
     check_env
 
     if [[ $1 == '--complete' ]] || [[ $1 == '-l' ]]; then
-        ( builtin cd $SOURCE_TEMPLATES; ls -1 )
+        ( builtin cd "$SOURCE_TEMPLATES"; ls -1 )
         exit 0
     fi
 

@@ -26,6 +26,7 @@ doc_title=$(echo "$selected" | cut -f2)
 
 # Create temporary directory
 temp_dir=$(mktemp -d)
+# shellcheck disable=SC2064 # Allow $temp_dir to be interpreted later
 trap "rm -rf '$temp_dir'" EXIT
 
 # Get the document to temp directory

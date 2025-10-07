@@ -13,7 +13,6 @@
 # USAGE: script-docs dump <script-file>
 
 import re
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -25,8 +24,8 @@ from rich.markdown import Markdown
 
 
 # Compiled regex patterns for documentation tags
-TAG_LINE_PATTERN = re.compile(r'^#\s*(BRIEF|DESC|USAGE|DEPS):\s*(.*)$')
-TAG_LABEL_PATTERN = re.compile(r'^#\s*(BRIEF|DESC|USAGE|DEPS):')
+TAG_LINE_PATTERN = re.compile(r"^#\s*(BRIEF|DESC|USAGE|DEPS):\s*(.*)$")
+TAG_LABEL_PATTERN = re.compile(r"^#\s*(BRIEF|DESC|USAGE|DEPS):")
 
 
 # Default markdown template
@@ -71,7 +70,8 @@ README_TEMPLATE = """{% for script in scripts %}
 @dataclass
 class ScriptDoc:
     """Documentation extracted from a script."""
-    name: str = ''
+
+    name: str = ""
     brief_lines: list[str] = field(default_factory=list)
     desc_lines: list[str] = field(default_factory=list)
     usage_lines: list[str] = field(default_factory=list)
@@ -80,22 +80,22 @@ class ScriptDoc:
     @property
     def brief(self) -> str:
         """Join brief_lines with newlines."""
-        return '\n'.join(self.brief_lines)
+        return "\n".join(self.brief_lines)
 
     @property
     def desc(self) -> str:
         """Join desc_lines with newlines."""
-        return '\n'.join(self.desc_lines)
+        return "\n".join(self.desc_lines)
 
     @property
     def usage(self) -> str:
         """Join usage_lines with newlines."""
-        return '\n'.join(self.usage_lines)
+        return "\n".join(self.usage_lines)
 
     @property
     def deps(self) -> str:
         """Join deps_lines with newlines."""
-        return '\n'.join(self.deps_lines)
+        return "\n".join(self.deps_lines)
 
     def verify(self) -> None:
         """
@@ -119,24 +119,23 @@ class ScriptDoc:
     def to_dict(self) -> dict:
         """Convert to dict with properties evaluated, excluding empty fields."""
         result = {}
-        result['name'] = self.name
-        result['brief'] = self.brief
+        result["name"] = self.name
+        result["brief"] = self.brief
         if self.desc_lines:
-            result['desc'] = self.desc
+            result["desc"] = self.desc
         if self.usage_lines:
-            result['usage'] = self.usage
+            result["usage"] = self.usage
         if self.deps_lines:
-            result['deps'] = self.deps
+            result["deps"] = self.deps
         return result
-
 
 
 def read_lines(file_path: Path):
     """Generator that yields lines from a file."""
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             for line in f:
-                yield line.rstrip('\n\r')
+                yield line.rstrip("\n\r")
     except (IOError, OSError) as e:
         raise click.ClickException(f"Error reading {file_path}: {e}")
 
@@ -210,13 +209,13 @@ def build_doc(tag_content_pairs) -> ScriptDoc:
 
     for tag, content in tag_content_pairs:
         match tag:
-            case 'BRIEF':
+            case "BRIEF":
                 doc.brief_lines.append(content)
-            case 'DESC':
+            case "DESC":
                 doc.desc_lines.append(content)
-            case 'USAGE':
+            case "USAGE":
                 doc.usage_lines.append(content)
-            case 'DEPS':
+            case "DEPS":
                 doc.deps_lines.append(content)
 
     return doc
@@ -229,8 +228,8 @@ def is_script(file_path: Path) -> bool:
     Returns True if the file starts with #!, False otherwise.
     """
     try:
-        with open(file_path, 'rb') as f:
-            return f.read(2) == b'#!'
+        with open(file_path, "rb") as f:
+            return f.read(2) == b"#!"
     except Exception:
         return False
 
@@ -265,35 +264,50 @@ def cli():
 
 
 @cli.command()
-@click.argument('script_files', type=click.Path(exists=True, path_type=Path), nargs=-1, required=False)
-@click.option(
-    '--format', '-f',
-    type=click.Choice(['json', 'markdown', 'rich', 'readme', 'custom'], case_sensitive=False),
-    default='json',
-    help='Output format'
-)
-@click.option(
-    '--output', '-o',
-    type=click.File('w'),
-    default='-',
-    help='Output file (default: stdout)'
-)
-@click.option(
-    '--template', '-t',
+@click.argument(
+    "script_files",
     type=click.Path(exists=True, path_type=Path),
-    help='Custom Jinja2 template file (required for --format custom)'
+    nargs=-1,
+    required=False,
 )
 @click.option(
-    '--show-default-template',
-    is_flag=True,
-    help='Print the default markdown template and exit'
+    "--format",
+    "-f",
+    type=click.Choice(
+        ["json", "markdown", "rich", "readme", "custom"], case_sensitive=False
+    ),
+    default="json",
+    help="Output format",
 )
 @click.option(
-    '--strict',
-    is_flag=True,
-    help='Validate documentation and fail if BRIEF is missing'
+    "--output",
+    "-o",
+    type=click.File("w"),
+    default="-",
+    help="Output file (default: stdout)",
 )
-def dump(script_files: tuple[Path, ...], format: str, output, template: Path | None, show_default_template: bool, strict: bool):
+@click.option(
+    "--template",
+    "-t",
+    type=click.Path(exists=True, path_type=Path),
+    help="Custom Jinja2 template file (required for --format custom)",
+)
+@click.option(
+    "--show-default-template",
+    is_flag=True,
+    help="Print the default markdown template and exit",
+)
+@click.option(
+    "--strict", is_flag=True, help="Validate documentation and fail if BRIEF is missing"
+)
+def dump(
+    script_files: tuple[Path, ...],
+    format: str,
+    output,
+    template: Path | None,
+    show_default_template: bool,
+    strict: bool,
+):
     """
     Extract documentation from scripts and output in specified format.
 
@@ -309,7 +323,7 @@ def dump(script_files: tuple[Path, ...], format: str, output, template: Path | N
         raise click.ClickException("At least one SCRIPT_FILE is required")
 
     # Validate template requirement for custom format
-    if format.lower() == 'custom' and not template:
+    if format.lower() == "custom" and not template:
         raise click.ClickException("--template is required when using --format custom")
 
     # Parse all scripts
@@ -354,28 +368,29 @@ def dump(script_files: tuple[Path, ...], format: str, output, template: Path | N
     console = Console(file=output)
 
     match format.lower():
-        case 'json':
+        case "json":
             # Rich will pretty-print JSON when outputting to a terminal
             import json
+
             json_str = json.dumps(scripts, indent=2)
             console.print(JSON(json_str))
-        case 'markdown':
+        case "markdown":
             # Use default markdown template and output raw markdown
             tmpl = Template(DEFAULT_MARKDOWN_TEMPLATE)
             result = tmpl.render(scripts=scripts)
             click.echo(result, file=output)
-        case 'rich':
+        case "rich":
             # Use default markdown template and render with Rich
             tmpl = Template(DEFAULT_MARKDOWN_TEMPLATE)
             result = tmpl.render(scripts=scripts)
             md = Markdown(result)
             console.print(md)
-        case 'readme':
+        case "readme":
             # Use README template for brief summary
             tmpl = Template(README_TEMPLATE)
             result = tmpl.render(scripts=scripts)
             click.echo(result, file=output)
-        case 'custom':
+        case "custom":
             # Load custom template from file and output raw result
             template_content = template.read_text()
             tmpl = Template(template_content)
@@ -383,5 +398,5 @@ def dump(script_files: tuple[Path, ...], format: str, output, template: Path | N
             click.echo(result, file=output)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

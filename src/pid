@@ -36,11 +36,11 @@ class ProcessRow:
 
 def get_user_processes() -> Generator[psutil.Process, None, None]:
     """Get all processes owned by the current user.
-    
+
     This function handles all potential psutil exceptions upfront and only yields
     processes that are safe to access. Consumers of this generator can safely
     access proc.info without additional exception handling.
-    
+
     Shows processes where either the real user OR effective user matches current user.
     """
     current_uid = os.getuid()
@@ -51,14 +51,19 @@ def get_user_processes() -> Generator[psutil.Process, None, None]:
             uids = proc_info["uids"]
             if uids.real == current_uid or uids.effective == current_uid:
                 yield proc
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, KeyError):
+        except (
+            psutil.NoSuchProcess,
+            psutil.AccessDenied,
+            psutil.ZombieProcess,
+            KeyError,
+        ):
             continue
 
 
 def filter_processes(
-    processes: Generator[psutil.Process, None, None], 
-    pattern: str | None, 
-    case_insensitive: bool
+    processes: Generator[psutil.Process, None, None],
+    pattern: str | None,
+    case_insensitive: bool,
 ) -> Generator[psutil.Process, None, None]:
     """Filter processes by name pattern."""
     if not pattern:
@@ -70,7 +75,9 @@ def filter_processes(
         yield from (p for p in processes if pattern in p.info["name"])
 
 
-def highlight_name(name: str, pattern: str | None, case_insensitive: bool, hl_color: str) -> str | Text:
+def highlight_name(
+    name: str, pattern: str | None, case_insensitive: bool, hl_color: str
+) -> str | Text:
     """Highlight a process name with the given pattern and color."""
     if not pattern:
         return name
@@ -85,10 +92,10 @@ def highlight_name(name: str, pattern: str | None, case_insensitive: bool, hl_co
 
 
 def format_processes(
-    processes: Generator[psutil.Process, None, None], 
-    pattern: str | None, 
-    case_insensitive: bool, 
-    hl_color: str
+    processes: Generator[psutil.Process, None, None],
+    pattern: str | None,
+    case_insensitive: bool,
+    hl_color: str,
 ) -> Generator[ProcessRow, None, None]:
     """Format processes into ProcessRow objects with calculated fields and highlighting."""
     for proc in processes:

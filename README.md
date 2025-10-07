@@ -12,9 +12,9 @@ scripts to a directory that is already in your path.
 <!-- [[[cog
 import subprocess
 from pathlib import Path
-files = [str(f) for f in Path('.').glob('*') if f.is_file()]
+files = [str(f) for f in Path('src').glob('*') if f.is_file()]
 res = subprocess.run([
-    "./script-docs", "dump", "--format", "readme"
+    "./src/script-docs", "dump", "--format", "readme"
     ] + files, capture_output=True, text=True)
 cog.out(res.stdout)
 ]]] -->

@@ -9,7 +9,7 @@
 # USAGE: showaliases [-a|--without-alias]  # Don't require 'alias' keyword
 # USAGE:   Can read from stdin: alias | showaliases
 
-__description__ = ''
+__description__ = ""
 
 # ---------------------------------------------------------------------------
 # Standard imports:
@@ -27,14 +27,16 @@ from functools import reduce
 # ---------------------------------------------------------------------------
 
 
-ANSI_BLUE  = "\x1b[0;36m"
+ANSI_BLUE = "\x1b[0;36m"
 ANSI_RESET = "\x1b[0m"
+
 
 def ansify(string, colour):
     """
     Paints a string usgint eh given ANSI colour code.
     """
     return "%s%s%s" % (colour, string, ANSI_RESET)
+
 
 def printalias(alist):
     """
@@ -47,8 +49,9 @@ def printalias(alist):
     colsize = reduce(max, [len(x[0]) for x in alist])
 
     for alias in alist:
-        fmt = "%%%ds = %%s" % (colsize+12)
+        fmt = "%%%ds = %%s" % (colsize + 12)
         print(fmt % (ansify(alias[0], ANSI_BLUE), alias[1]))
+
 
 def get_aliases(files, args):
     """
@@ -58,9 +61,9 @@ def get_aliases(files, args):
     """
 
     if args.without_alias:
-        regex = r'^\s*(\S+?)\s*=\s*(.*)$'
+        regex = r"^\s*(\S+?)\s*=\s*(.*)$"
     else:
-        regex = r'^\s*alias\s+(\S+)\s*=\s*(.*)$'
+        regex = r"^\s*alias\s+(\S+)\s*=\s*(.*)$"
 
     line_matcher = re.compile(regex)
     aliases = []
@@ -72,11 +75,18 @@ def get_aliases(files, args):
 
 
 def parse_args(argv):
-    """ Parse and validate command line arguments """
+    """Parse and validate command line arguments"""
     parser = argparse.ArgumentParser(description=__description__)
     # TODO: Add arguments here
-    parser.add_argument('file', nargs='+', help='Files to look for aliases in. Use - for STDIN')
-    parser.add_argument('--without-alias', '-a', action='store_true', help='Do not expect aliases to have the word alias')
+    parser.add_argument(
+        "file", nargs="+", help="Files to look for aliases in. Use - for STDIN"
+    )
+    parser.add_argument(
+        "--without-alias",
+        "-a",
+        action="store_true",
+        help="Do not expect aliases to have the word alias",
+    )
 
     args = parser.parse_args(argv[1:])
     # TODO: Add validation here
@@ -84,12 +94,12 @@ def parse_args(argv):
 
     return args
 
+
 def main(argv=[__name__]):
-    """ Run this program """
+    """Run this program"""
     args = parse_args(argv)
     try:
-
-        files = [x for x in args.file if os.path.isfile(x) or x=='-']
+        files = [x for x in args.file if os.path.isfile(x) or x == "-"]
         if len(files) == 0 and args != sys.argv[1:]:
             print("Some files could not be found", file=sys.stderr)
             return 1
@@ -100,5 +110,6 @@ def main(argv=[__name__]):
     except KeyboardInterrupt:
         return -1
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     sys.exit(main(sys.argv) or 0)
