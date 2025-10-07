@@ -1,0 +1,198 @@
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "click",
+#     "rich",
+#     "platformdirs",
+#     "pyperclip",
+#     "cloup",
+# ]
+# ///
+# BRIEF: Show the most recently downloaded files with colors
+# DESC: List recent files from the downloads directory with timestamps and
+# DESC: customizable colors. Defaults to showing the 10 most recent files.
+# DESC: Supports copying the latest file path to clipboard.
+# USAGE: lastdown              # Show 10 most recent files
+# USAGE: lastdown -n 5         # Show 5 most recent files
+# USAGE: lastdown copy         # Copy latest file path to clipboard
+# USAGE: lastdown --color-file "red bold"  # Customize filename color
+# DEPS: uv (for runtime), pyperclip dependencies (xclip/xsel on Linux, pbcopy on macOS)
+
+import sys
+from datetime import datetime
+from pathlib import Path
+
+import click
+import cloup
+from cloup import option, option_group
+import platformdirs
+import pyperclip
+from rich.console import Console
+from rich.markup import escape
+
+# Default colors
+DEFAULT_COLOR_DATE = "blue"
+DEFAULT_COLOR_TIME = "dim green"
+DEFAULT_COLOR_DIR = "dim"
+DEFAULT_COLOR_FILE = "bold"
+
+
+def get_default_downloads_dir():
+    """Get the default downloads directory using platformdirs."""
+    return platformdirs.user_downloads_dir()
+
+
+def get_recent_files(directory: Path, count: int):
+    """Get the most recent files from a directory."""
+    try:
+        files = []
+        for entry in directory.iterdir():
+            if entry.is_file():
+                stat = entry.stat()
+                files.append((entry, stat.st_mtime))
+
+        # Sort by modification time and get the most recent ones
+        files.sort(key=lambda x: x[1])
+        return [f[0] for f in files[-count:]]
+    except (PermissionError, FileNotFoundError) as e:
+        click.echo(f"Error accessing directory: {e}", err=True)
+        sys.exit(1)
+
+
+@cloup.group(invoke_without_command=True, context_settings={"help_option_names": ["-h", "--help"]})
+@option(
+    "--downloads-dir",
+    envvar="LASTDOWN_DIR",
+    type=cloup.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    default=None,
+    help="Downloads directory to scan (default: system downloads folder)",
+)
+@option(
+    "-n",
+    "--count",
+    default=10,
+    type=int,
+    help="Number of recent files to show (default: 10)",
+)
+@option_group(
+    "Color options",
+    option(
+        "--color-date",
+        envvar="LASTDOWN_COLOR_DATE",
+        default=DEFAULT_COLOR_DATE,
+        help=f"Color for date (default: '{DEFAULT_COLOR_DATE}')",
+    ),
+    option(
+        "--color-time",
+        envvar="LASTDOWN_COLOR_TIME",
+        default=DEFAULT_COLOR_TIME,
+        help=f"Color for time (default: '{DEFAULT_COLOR_TIME}')",
+    ),
+    option(
+        "--color-dir",
+        envvar="LASTDOWN_COLOR_DIR",
+        default=DEFAULT_COLOR_DIR,
+        help=f"Color for directory path (default: '{DEFAULT_COLOR_DIR}')",
+    ),
+    option(
+        "--color-file",
+        envvar="LASTDOWN_COLOR_FILE",
+        default=DEFAULT_COLOR_FILE,
+        help=f"Color for filename (default: '{DEFAULT_COLOR_FILE}')",
+    ),
+)
+@cloup.pass_context
+def cli(ctx, downloads_dir, count, color_date, color_time, color_dir, color_file):
+    """Show the most recently downloaded files."""
+    ctx.ensure_object(dict)
+
+    # Use provided directory or fall back to default
+    if downloads_dir is None:
+        downloads_dir = Path(get_default_downloads_dir())
+
+    ctx.obj["downloads_dir"] = downloads_dir
+    ctx.obj["count"] = count
+    ctx.obj["color_date"] = color_date
+    ctx.obj["color_time"] = color_time
+    ctx.obj["color_dir"] = color_dir
+    ctx.obj["color_file"] = color_file
+
+    # If no subcommand is provided, invoke 'ls' by default
+    if ctx.invoked_subcommand is None:
+        ctx.invoke(ls, count=count)
+
+
+@cli.command()
+@option(
+    "-n",
+    "--count",
+    default=None,
+    type=int,
+    help="Number of recent files to show (default: 10)",
+)
+@cloup.pass_context
+def ls(ctx, count):
+    """List recent downloads with timestamps and colors."""
+    downloads_dir = ctx.obj["downloads_dir"]
+    # Use the count from command option if provided, otherwise use the one from parent
+    if count is None:
+        count = ctx.obj.get("count", 10)
+
+    # Get color settings from context
+    color_date = ctx.obj.get("color_date", DEFAULT_COLOR_DATE)
+    color_time = ctx.obj.get("color_time", DEFAULT_COLOR_TIME)
+    color_dir = ctx.obj.get("color_dir", DEFAULT_COLOR_DIR)
+    color_file = ctx.obj.get("color_file", DEFAULT_COLOR_FILE)
+
+    files = get_recent_files(downloads_dir, count)
+
+    if not files:
+        click.echo("No files found in downloads directory.")
+        return
+
+    console = Console(highlight=False)
+
+    for file_path in files:
+        stat = file_path.stat()
+        mtime = datetime.fromtimestamp(stat.st_mtime)
+        date = mtime.strftime("%Y-%m-%d")
+        time = mtime.strftime("%H:%M:%S")
+
+        # Format: date time | directory | filename
+        # Escape the filename to prevent Rich from interpreting special characters
+        escaped_filename = escape(file_path.name)
+
+        console.print(
+            f"[{color_date}]{date}[/{color_date}] "
+            f"[{color_time}]{time}[/{color_time}] "
+            f"[{color_dir}]{downloads_dir}/[/{color_dir}]"
+            f"[{color_file}]{escaped_filename}[/{color_file}]"
+        )
+
+
+@cli.command()
+@cloup.pass_context
+def copy(ctx):
+    """Copy the path of the most recent download to clipboard."""
+    downloads_dir = ctx.obj["downloads_dir"]
+
+    files = get_recent_files(downloads_dir, 1)
+
+    if not files:
+        click.echo("No files found in downloads directory.", err=True)
+        sys.exit(1)
+
+    latest_file = files[0]
+    file_path_str = str(latest_file)
+
+    try:
+        pyperclip.copy(file_path_str)
+        click.echo(f"Copied to clipboard: {file_path_str}")
+    except pyperclip.PyperclipException as e:
+        click.echo(f"Error copying to clipboard: {e}", err=True)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    cli()

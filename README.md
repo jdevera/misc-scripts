@@ -23,6 +23,8 @@ cog.out(res.stdout)
 
 - **json-to-yaml** - Convert JSON files to YAML format
 
+- **lastdown** - Show the most recently downloaded files with colors
+
 - **chezmoi-pick-file** - Interactively select a chezmoi-managed file with fzf
 
 - **git-branches** - Display git branches organized by category with color coding
