@@ -33,8 +33,18 @@ trap "rm -rf '$temp_dir'" EXIT
 temp_file="$temp_dir/$doc_title"
 op document get "$doc_id" --output "$temp_file"
 
+# Keep a copy to detect changes
+orig_file="$temp_dir/.original"
+cp "$temp_file" "$orig_file"
+
 # Open with editor
 ${EDITOR:-vi} "$temp_file"
+
+# Only push if content changed
+if cmp -s "$orig_file" "$temp_file"; then
+    echo "No changes made to '$doc_title', skipping upload" >&2
+    exit 0
+fi
 
 # Upload the edited document back to 1Password
 op document edit "$doc_id" "$temp_file"
