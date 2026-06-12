@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# BRIEF: Search file contents live with ripgrep and fzf, open matches in Vim
+# DESC: Re-run ripgrep on every keystroke inside an fzf picker with a bat
+# DESC: preview of the matched line. Enter opens the match in Vim at the
+# DESC: right line; multi-selected matches open as a quickfix list.
+# USAGE: rfv [initial-query]
+# DEPS: rg, fzf, bat
+#
+# Adapted from Junegunn Choi's rfv example (https://junegunn.github.io/fzf/)
+
+# The MIT License (MIT)
+# 
+# Copyright (c) 2013-2025 Junegunn Choi
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+
+VIM=${VIM:-vim}
+
+# ripgrep->fzf->vim [QUERY]
+rfv() (
+  RELOAD='reload:rg --column --color=always --smart-case {q} || :'
+  # shellcheck disable=SC2016 # Allow $FZF_SELECT_COUNT in single quotes
+  OPENER='if [[ $FZF_SELECT_COUNT -eq 0 ]]; then
+            $VIM {1} +{2}     # No selection. Open the current line in Vim.
+          else
+            $VIM +cw -q {+f}  # Build quickfix list for the selected items.
+          fi'
+  fzf --disabled --ansi --multi \
+      --bind "start:$RELOAD" --bind "change:$RELOAD" \
+      --bind "enter:become:$OPENER" \
+      --bind "ctrl-o:execute:$OPENER" \
+      --bind 'alt-a:select-all' \
+      --bind 'alt-d:deselect-all' \
+      --bind 'ctrl-/:toggle-preview' \
+      --bind 'ctrl-d:change-preview-window(top|down|left|right)' \
+      --delimiter : \
+      --preview 'bat --style=full --color=always --highlight-line {2} {1}' \
+      --preview-window 'right,~4,+{2}+4/3' \
+      --query "$*"
+)
+
+rfv "$@"
