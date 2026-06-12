@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# BRIEF: Show a pretty-printed list of environment variables
+# USAGE: showenv
+# DEPS: showaliases
+
+printenv | grep '=' | showaliases -a -

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# BRIEF: Set intersection of two line files: only lines present in both inputs
+# DESC: Inputs are sorted and deduplicated automatically. Process
+# DESC: substitutions work as inputs: set-intersection <(cmd1) <(cmd2)
+# USAGE: set-intersection FILE_A FILE_B
+# DEPS: comm
+
+exec comm -12 <(sort -u "${1:?two input files required}") <(sort -u "${2:?two input files required}")

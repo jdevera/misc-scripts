@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# BRIEF: Fuzzy-find and edit a file in a config tree (defaults to chezmoi source)
+# DESC: List files in the given directory with fd (following symlinks), pick
+# DESC: one with fzf (previewed with bat, pygmentize, or less), and open the
+# DESC: selection in $EDITOR. Enter keeps the picker open for more edits.
+# USAGE: edot [dir]
+# DEPS: fzf, fd; optionally bat or pygmentize for previews
+
+set -euo pipefail
+
+die() { echo "$*" >&2; exit 1; }
+
+command -v fzf > /dev/null || die "Required command 'fzf' not found in PATH"
+command -v fd > /dev/null || die "Required command 'fd' not found in PATH"
+
+dir=${1:-$(chezmoi source-path 2> /dev/null || true)}
+[[ -n $dir ]] || dir="$HOME/.local/share/chezmoi"
+[[ -d $dir ]] || die "Not a directory: $dir"
+
+if command -v bat > /dev/null; then
+   preview_command="bat --color=always --line-range=:500"
+elif command -v pygmentize > /dev/null; then
+   preview_command="pygmentize -g -f terminal256 -P style=emacs"
+else
+   preview_command='less -r'
+fi
+
+(cd "$dir" && fd -I -tl -tf) |
+   fzf \
+      --preview "$preview_command '$dir/{}'" \
+      --bind "enter:execute(${EDITOR:-vi} '$dir/{}' </dev/tty)"

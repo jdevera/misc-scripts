@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# BRIEF: Set union of two line files: all lines from either input, deduplicated
+# DESC: Inputs are sorted and deduplicated automatically. Process
+# DESC: substitutions work as inputs: set-union <(cmd1) <(cmd2)
+# USAGE: set-union FILE_A FILE_B
+
+exec sort -u "${1:?two input files required}" "${2:?two input files required}"

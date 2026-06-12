@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# BRIEF: Serve the current directory over HTTP
+# USAGE: http_server [port]   (default: 8000)
+# DEPS: python3
+
+exec python3 -m http.server "${1:-8000}"

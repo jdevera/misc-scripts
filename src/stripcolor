@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# BRIEF: Remove ANSI color/escape codes from files or stdin
+# USAGE: stripcolor [files]
+# DEPS: perl
+
+exec perl -pe 's/\e\[[0-9;]*[a-zA-Z]//g' "$@"

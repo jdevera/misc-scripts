@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# BRIEF: Download files into the downloads directory with wget
+# DESC: Wrap wget with no-clobber and local timestamps, saving into $DDOWN
+# DESC: (falling back to ~/Downloads).
+# USAGE: download <url> [wget options]
+# DEPS: wget
+
+exec wget --no-use-server-timestamps --no-clobber --directory-prefix="${DDOWN:-$HOME/Downloads}" "$@"

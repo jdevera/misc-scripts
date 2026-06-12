@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# BRIEF: Symmetric difference of two line files: lines in either input but not both
+# DESC: Inputs are sorted and deduplicated automatically. Inputs are buffered
+# DESC: to temp files because each one is read twice, which would drain a
+# DESC: process substitution on the first pass. Not implemented with comm -3
+# DESC: directly because it prepends a tab to one column's output.
+# USAGE: set-symdiff FILE_A FILE_B
+# DEPS: set-difference
+
+set -euo pipefail
+dir=$(dirname "$0")
+
+tmp_a=$(mktemp)
+tmp_b=$(mktemp)
+trap 'rm -f "$tmp_a" "$tmp_b"' EXIT INT TERM
+
+cat "${1:?two input files required}" > "$tmp_a"
+cat "${2:?two input files required}" > "$tmp_b"
+
+{
+   "$dir/set-difference" "$tmp_a" "$tmp_b"
+   "$dir/set-difference" "$tmp_b" "$tmp_a"
+} | sort

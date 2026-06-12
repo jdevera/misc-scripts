@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# BRIEF: Print the average of numeric input lines
+# USAGE: <command> | average
+
+exec awk '{total+=$0}END{printf("%.2f\n",total/NR);}'

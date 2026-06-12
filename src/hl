@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# BRIEF: Syntax-highlight files or stdin in the terminal with pygmentize
+# DESC: Highlight input guessing the language (pass -l LEXER to override) using
+# DESC: the theme stored in $XDG_CONFIG_HOME/hl/theme (default: emacs).
+# DESC: With --pick-style FILE, interactively choose a theme with fzf, with a
+# DESC: live preview rendered on FILE, and save it as the new default theme.
+# USAGE: hl [pygmentize options] [files]
+# USAGE: hl --pick-style FILE
+# DEPS: pygmentize; fzf (only for --pick-style)
+
+set -euo pipefail
+
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hl"
+theme_file="$config_dir/theme"
+
+theme=emacs
+[[ -r $theme_file ]] && theme=$(< "$theme_file")
+
+die() { echo "$*" >&2; exit 1; }
+
+command -v pygmentize > /dev/null || die "Required command 'pygmentize' not found in PATH"
+
+if [[ ${1:-} == --pick-style ]]; then
+   file=${2:?"--pick-style needs a file to preview on"}
+   command -v fzf > /dev/null || die "Required command 'fzf' not found in PATH"
+   # shellcheck disable=SC2063
+   newtheme=$(pygmentize -L styles |
+      grep '*' |
+      cut -d' ' -f2 |
+      sed 's/://' |
+      sed "s/^$theme\$/$theme (current theme)/" |
+      fzf --preview "pygmentize -g -f terminal256 -P style=\$(echo {} | cut -d ' ' -f1) '$file'")
+   if [[ -n $newtheme ]]; then
+      newtheme=${newtheme%% *}
+      mkdir -p "$config_dir"
+      printf '%s\n' "$newtheme" > "$theme_file"
+      echo "New theme is $newtheme"
+   else
+      echo "No theme chosen, $theme remains"
+   fi
+   exit 0
+fi
+
+guess_arg='-g'
+for arg in "$@"; do
+   if [[ $arg == '-l' ]]; then
+      guess_arg=''
+      break
+   fi
+done
+
+# shellcheck disable=SC2086
+exec pygmentize $guess_arg -f terminal256 -P "style=$theme" "$@"

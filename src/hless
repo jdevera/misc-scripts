@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# BRIEF: Syntax-highlight files or stdin and page through less
+# USAGE: hless [hl arguments] [files]
+# DEPS: hl, less
+
+hl "$@" | less -FiXRM

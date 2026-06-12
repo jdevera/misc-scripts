@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# BRIEF: Locate a file with locate + fzf and open it in the editor
+# DESC: Run locate with all given arguments and pick one result with fzf
+# DESC: (toggle a head preview with '?'); the pick opens in $EDITOR.
+# USAGE: eloc <locate arguments>
+# DEPS: locate, fzf
+
+set -euo pipefail
+
+# shellcheck disable=SC2016  # $LINES must expand in fzf's preview shell
+file=$(locate "$@" |
+   fzf --exit-0 --select-1 --extended \
+      --preview '[[ -d {} ]] || head -n $LINES {} | less -RMS' \
+      --preview-window hidden \
+      --bind '?:toggle-preview')
+if [[ -n $file ]]; then
+   "${EDITOR:-vi}" "$file"
+fi

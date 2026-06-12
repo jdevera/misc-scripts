@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# BRIEF: Show a sparkline of daily Claude AI spend
+# USAGE: claude-spend [DAYS]   (default: 5 days)
+# DEPS: ccusage, spark
+
+set -euo pipefail
+
+if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
+   echo "Usage: claude-spend [DAYS]"
+   echo "Show a sparkline of daily Claude AI spend."
+   echo ""
+   echo "  DAYS  Number of days to show (default: 5)"
+   exit 0
+fi
+
+die() { echo "$*" >&2; exit 1; }
+
+command -v ccusage > /dev/null || die "Required command 'ccusage' not found in PATH"
+command -v spark > /dev/null || die "Required command 'spark' not found in PATH"
+
+days=${1:-5}
+
+# BSD date (macOS) uses -v for date arithmetic; GNU date (Linux) uses -d
+if date -v -1d +%Y%m%d > /dev/null 2>&1; then
+   since=$(date -v-"${days}"d +%Y%m%d)
+else
+   since=$(date -d "${days} days ago" +%Y%m%d)
+fi
+
+# shellcheck disable=SC2046
+spark $(ccusage daily --since "$since" --jq '[.daily[].totalCost][]' --no-color)

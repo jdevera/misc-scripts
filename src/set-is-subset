@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# BRIEF: Exit 0 if all lines of the first input file are also in the second
+# USAGE: set-is-subset FILE_A FILE_B
+# DEPS: set-difference
+
+set -euo pipefail
+dir=$(dirname "$0")
+[[ -z $("$dir/set-difference" "$1" "$2") ]]

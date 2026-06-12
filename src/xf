@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# BRIEF: Extract any compressed file based on its extension
+# USAGE: xf <archive>
+# DEPS: tar, unzip, 7z, rar, bunzip2, gunzip, uncompress (as needed per format)
+
+file="$1"
+[[ -f $file ]] || { echo "$file not a file" >&2; exit 1; }
+case $file in
+   *.tar.xz|*.tar.bz2|*.tar.gz  ) tar xf    "$file"  ;;
+   *.bz2     ) bunzip2    "$file"  ;;
+   *.rar     ) rar x      "$file"  ;;
+   *.gz      ) gunzip     "$file"  ;;
+   *.tar     ) tar xf     "$file"  ;;
+   *.tbz2    ) tar xjf    "$file"  ;;
+   *.tgz     ) tar xzf    "$file"  ;;
+   *.zip     ) unzip      "$file"  ;;
+   *.Z       ) uncompress "$file"  ;;
+   *.7z      ) 7z x       "$file"  ;;
+   *         )
+      echo "Don't know how to extract '$file'" >&2
+      exit 1
+      ;;
+esac

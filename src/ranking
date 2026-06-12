@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# BRIEF: Frequency table of input lines, most common first
+# DESC: Sort input, count duplicate lines, and order by count descending.
+# DESC: Pass -r to order ascending instead.
+# USAGE: ranking [-r] [files]
+
+reverse='-r'
+if [[ ${1:-} == '-r' ]]; then
+   reverse=''
+   shift
+fi
+
+sort "$@" | uniq -c | sort -k1 -n ${reverse:+"$reverse"}

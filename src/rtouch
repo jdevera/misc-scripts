@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# BRIEF: Touch a file, creating all parent directories first
+# USAGE: rtouch <path>
+
+set -euo pipefail
+filepath=${1:?"file path argument missing"}
+mkdir -p "$(dirname "$filepath")"
+touch "$filepath"

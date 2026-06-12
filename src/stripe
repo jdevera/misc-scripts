@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# BRIEF: Color alternate lines of input blue for visual striping
+# USAGE: <command> | stripe
+# DEPS: perl
+
+exec perl -pe '$_ = "\033[1;34m$_\033[0m" if($. % 2)'

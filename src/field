@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# BRIEF: Print the Nth whitespace-separated field of each input line
+# USAGE: field N [files]
+# USAGE: <command> | field N
+
+nfield=${1:?"field number argument missing"}
+shift
+exec awk -v nfield="$nfield" '{print $nfield}' "$@"
